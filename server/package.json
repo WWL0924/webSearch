@@ -1,0 +1,19 @@
+{
+  "name": "file-processing",
+  "version": "1.0.0",
+  "description": "文件批量处理",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [
+    "file",
+    "processing"
+  ],
+  "author": "wwl",
+  "license": "ISC",
+  "bin": {
+    "fp": "./cli.js",
+    "rename": "./app.js"
+  }
+}
