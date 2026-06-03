@@ -1,1 +1,18 @@
-//ai生成总结部分 渲染到页面并且下载报告
+import { Card } from 'antd'
+
+type SummaryPanelProps = {
+  data: string
+}
+
+function SummaryPanel({ data }: SummaryPanelProps) {
+  return (
+    <Card
+      title="总结结果"
+      style={{ width: 500 }}
+    >
+      {data}
+    </Card>
+  )
+}
+
+export default SummaryPanel

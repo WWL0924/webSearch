@@ -1,3 +1,5 @@
+//服务入口 对外提供http接口被前端调用
+
 //改名逻辑
 const fs = require('fs') //读写文件的对象
 //这里path的格式要是 ./Node/list/ 最后有个/

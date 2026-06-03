@@ -1,29 +1,35 @@
-import { useRef, useState } from 'react'
-import { Input } from 'antd';
+import { useEffect, useState } from 'react'
+import ResultList from '../components/ResultList'
+import SearchForm from '../components/SearchForm'
+import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
 
 function App() {
-  //查询过程中显示 查询中
-  function onSearch(value) {
-    //获取输入框中的内容
-    console.log(value)
+  const [word, setWord] = useState('搜索结果')
+  const [url, setUrl] = useState('等待请求后端接口')
+  const [data, setData] = useState('等待生成总结结果')
 
-    //调用后端开始分析
+  useEffect(() => {
+    if (!word.trim()) {
+      setUrl('请输入搜索关键词')
+      setData('请输入搜索关键词后再发起请求')
+      return
+    }
 
-    //loading状态
+    setUrl(`等待请求 /api/search，当前关键词：${word}`)
+    setData('后端返回结果后在这里展示总结内容')
+  }, [word])
 
-
-  }
-
-  const { Search } = Input;
   return (
     <>
-      <Search
-        placeholder='请输入要查询的内容'
-        enterButton="搜索"
-        onSearch={onSearch}
-        style={{ width: 300 }}
+      <SearchForm
+        word={word}
+        onSearch={setWord}
       />
+
+      <ResultList url={url} />
+
+      <SummaryPanel data={data} />
     </>
   )
 }

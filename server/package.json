@@ -11,9 +11,5 @@
     "processing"
   ],
   "author": "wwl",
-  "license": "ISC",
-  "bin": {
-    "fp": "./cli.js",
-    "rename": "./app.js"
-  }
+  "license": "ISC"
 }
