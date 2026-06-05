@@ -1,36 +1,29 @@
-//word发送到后端 后端根据关键词检索文件
-// 从这些网站中检索
-// - `react.dev`
-// - `vite.dev`
-// - `nodejs.org`
-// - `developer.mozilla.org`
-// - `typescriptlang.org`
-//list存放用到的网页
-//summary存放ai总结
-//返回{list:[{title,url}],summary:}结构的数据
-//导入方法
-const searchList = require('../services/searchList')
-const AIsummary = require('../services/AIsummary')
+const express = require('express');
+const searchList = require('../services/searchList');
+const AIsummary = require('../services/AIsummary');
 
-const express = require("express");
-
+//创建路由实例
 const router = express.Router();
 
-router.post("/search", (req, res) => {
-  const { keyword } = req.body;//从req.body中解构出关键词
-  //生成list
-  let list1 = await searchList(keyword)
-  //生成ai总结
-  let summary1 = await AIsummary(keyword, list1)
-  res.json({
-    // list: [{
-    //   title: 'react官方文档',
-    //   url: 'react.dev'
-    // }],
-    list: list1,
-    // summary: '生成的ai总结'
-    summary: summary1
-  });
+router.post('/search', async (req, res) => {
+  try {
+    const { keyword = '' } = req.body;
+    console.log('1-----解析keyword', keyword)
+    const list = await searchList(keyword);
+    const summary = await AIsummary(keyword, list);
+    console.log('后端返回的数据', list, summary)
+    return res.json({
+      list,
+      summary,
+    });
+  } catch (error) {
+    console.log('---------------后端请求失败', error)
+    res.status(500).json({
+      list: [],
+      summary: '',
+      message: error instanceof Error ? error.message : '搜索失败',
+    });
+  }
 });
 
 module.exports = router;

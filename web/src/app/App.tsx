@@ -4,23 +4,21 @@ import SearchForm from '../components/SearchForm'
 import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
 
-type SearchItem = {
-  title: string
-  url?: string
-}
+
 
 type SearchResponse = {
-  list: SearchItem[]
+  list: []
   summary: string
 }
 
 function App() {
   const [word, setWord] = useState('')
-  const [list, setList] = useState<SearchItem[]>([{ title: '请输入关键词 查找网页清单' }])
+  const [list, setList] = useState(['搜索命中的MDN页面列表'])
   const [data, setData] = useState('AI生成总结')
 
   //发送关键词 返回数据
   async function Searchkeyword(keyword: string): Promise<SearchResponse> {
+    //该网页无法正常运作
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: {
@@ -54,20 +52,20 @@ function App() {
 
     // 处理空值
     if (!keyword) {
-      setList([{ title: '请输入关键词' }])
+      setList(['请输入关键词'])
       setData('输入关键词后 ai分析给出总结')
       return
     }
 
     //加载状态
-    setList([{ title: `正在分析中,关键词${keyword}` }])
+    setList([`正在分析中,关键词${keyword}`])
     setData(`正在分析中,关键词${keyword}`)
 
     //捕获异常
     try {
       await fetchData(keyword)
     } catch (error) {
-      setList([{ title: '搜索失败,请稍后重试' }])
+      setList(['搜索失败,请稍后重试'])
       setData(error instanceof Error ? error.message : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试')
     }
   }
@@ -75,7 +73,9 @@ function App() {
   return (
     <>
       <SearchForm word={word} onSearch={handleSearch} />
+      {/* 显示mdn搜索结果前五条 */}
       <ResultList list={list} />
+      {/* 显示ai总结文本 */}
       <SummaryPanel data={data} />
     </>
   )

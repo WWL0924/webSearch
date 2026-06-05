@@ -1,15 +1,19 @@
 {
-  "name": "file-processing",
+  "name": "file-processing-server",
   "version": "1.0.0",
-  "description": "文件批量处理",
-  "main": "app.js",
+  "description": "MDN 搜索服务",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node src/app.js"
   },
   "keywords": [
-    "file",
-    "processing"
+    "mdn",
+    "search"
   ],
   "author": "wwl",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "express": "^5.1.0"
+  }
 }
