@@ -1,4 +1,5 @@
 import { Card } from 'antd'
+import ReactMarkdown from 'react-markdown';
 
 type SummaryPanelProps = {
   data: string
@@ -10,7 +11,7 @@ function SummaryPanel({ data }: SummaryPanelProps) {
       title="总结结果"
       style={{ width: 500 }}
     >
-      {data}
+      return <ReactMarkdown>{data}</ReactMarkdown>
     </Card>
   )
 }

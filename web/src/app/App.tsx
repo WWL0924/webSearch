@@ -32,7 +32,6 @@ function App() {
     if (!res.ok) {
       throw new Error('发送数据失败')
     }
-
     // 返回的数据结构 { list, summary }
     return res.json()
   }
@@ -40,6 +39,7 @@ function App() {
   // 接收数据 根据结果更新页面
   async function fetchData(keyword: string) {
     const result = await Searchkeyword(keyword)
+    console.log('fetchData接受到的数据', result)
     //请求结束之后更新
     setData(result.summary)
     setList(result.list)
@@ -73,7 +73,7 @@ function App() {
   return (
     <>
       <SearchForm word={word} onSearch={handleSearch} />
-      {/* 显示mdn搜索结果前五条 */}
+      {/* 显示搜索结果前五条 */}
       <ResultList list={list} />
       {/* 显示ai总结文本 */}
       <SummaryPanel data={data} />

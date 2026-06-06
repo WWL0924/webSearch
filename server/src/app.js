@@ -1,6 +1,13 @@
+//导入key
+const dotenv = require("dotenv")
+dotenv.config()
+
+console.log('1---导入的key', process.env.DASHSCOPE_API_KEY)
 //启动服务 入口文件 总路由
 const express = require("express");
 const searchRouter = require("./routes/search");
+
+
 
 const app = express();
 //注册中间件 
