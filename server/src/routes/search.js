@@ -11,6 +11,7 @@ router.post('/search', async (req, res) => {
     console.log('1-----解析keyword', keyword)
     const list = await searchList(keyword);
     const summary = await AIsummary(keyword, list);
+    console.log('searchjs后端返回的summary类型', typeof summary)
     return res.json({
       list,
       summary,

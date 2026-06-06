@@ -13,7 +13,7 @@ type SearchResponse = {
 
 function App() {
   const [word, setWord] = useState('')
-  const [list, setList] = useState(['搜索命中的MDN页面列表'])
+  const [list, setList] = useState(['搜索js官方中文网站结果'])
   const [data, setData] = useState('AI生成总结')
 
   //发送关键词 返回数据
@@ -41,6 +41,7 @@ function App() {
     const result = await Searchkeyword(keyword)
     console.log('fetchData接受到的数据', result)
     //请求结束之后更新
+    console.log('apptsx返回的summary类型', typeof result.summary)
     setData(result.summary)
     setList(result.list)
   }

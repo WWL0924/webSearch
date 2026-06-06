@@ -8,10 +8,10 @@ type SummaryPanelProps = {
 function SummaryPanel({ data }: SummaryPanelProps) {
   return (
     <Card
-      title="总结结果"
+      title="ai总结结果"
       style={{ width: 500 }}
     >
-      return <ReactMarkdown>{data}</ReactMarkdown>
+      <ReactMarkdown>{data}</ReactMarkdown>
     </Card>
   )
 }
