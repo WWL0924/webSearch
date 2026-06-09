@@ -65,6 +65,6 @@ async function searchList(keyword) {
   console.log('抓取结果', res)
   return res
 }
-// searchList('slice')
+searchList('slice')
 
 module.exports = searchList;

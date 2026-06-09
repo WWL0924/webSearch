@@ -2,7 +2,7 @@ import { Card } from 'antd'
 
 //list[''.'']
 type ResultListProps = {
-  list: []
+  list: string[]
 }
 
 function ResultList({ list }: ResultListProps) {

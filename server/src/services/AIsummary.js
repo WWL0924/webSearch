@@ -1,3 +1,5 @@
+//从ai拿到片段 持续写出
+
 //导入
 const OpenAI = require("openai");//类
 
@@ -9,22 +11,33 @@ const client = new OpenAI({
   baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   // key
   apiKey: process.env.DASHSCOPE_API_KEY,
-  //apiKey: `sk-983d123cb18945058f56c1fb17691b57`
 
 
 });
 //根据提取出的内容给ai
-async function AIsummary(keyword, list) {
-  //调用ai
+async function AIsummary(keyword, list, res) {
+
+  //你让 AI用流式方式把模型结果返回给Node服务
   const response = await client.responses.create({
     //模型
+    //这里要换成回复更快的模型么
     model: 'qwen-plus',
-    input: `${keyword} + ${list}`
+    input: `${keyword} + ${list}`,
+    //开启流式传输
+    stream: true
   });
 
-  console.log('2返回的respons的数据类型', typeof response.output_text, response.output_text)
-  return response.output_text
-  // return '222ai返回'
+  //不断监听ai返回的数据
+  for await (const event of response) {
+    //如果是新增的文本
+    if (event.type === "response.output_text.delta") {
+      //发送给前端
+      res.write(event.delta);
+    }
+  }
+
+  //最后结束
+  res.end();
 }
 
 module.exports = AIsummary;

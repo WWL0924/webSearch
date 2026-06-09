@@ -9,7 +9,7 @@ function SummaryPanel({ data }: SummaryPanelProps) {
   return (
     <Card
       title="ai总结结果"
-      style={{ width: 500 }}
+      style={{ width: 1000 }}
     >
       <ReactMarkdown>{data}</ReactMarkdown>
     </Card>
