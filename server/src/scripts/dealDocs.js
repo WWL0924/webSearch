@@ -51,7 +51,7 @@ function loadDocs(list) {
     let content = fs.readFileSync(item.absPath, 'utf8')
     item.content = content
   }
-  console.log('2带内容的文件列表', list)
+  // console.log('2带内容的文件列表', list)
   return list
 }
 
@@ -78,7 +78,7 @@ function cleanDocs(list) {
         ''
       )
   }
-  console.log('0--------清洗之后的文本', list)
+  // console.log('0--------清洗之后的文本', list)
   return list
 }
 
@@ -91,8 +91,8 @@ function cutDocs(lists) {
     // 2. 先按标题切成多个 section
     let sections = splitByHeadings(list.content)
 
-    // let maxLength = 1000
-    let maxLength = 100
+    let maxLength = 1000
+    // let maxLength = 100 //测试数据
     for (let section of sections) {
       // 4. 如果 section 不长，直接生成一个 chunk
       if (section.content.length <= maxLength) {
@@ -195,7 +195,7 @@ function splitByHeadings(content) {
       length: currentLines.length,
     })
   }
-  console.log('------1按照标题切分', sections)
+  // console.log('------1按照标题切分', sections)
   return sections
 }
 
@@ -205,7 +205,7 @@ function splitByParagraph(section, maxLength) {
     .split(/\r?\n\r?\n+/) // 按一个或多个空行切分段落
     .map(item => item.trim()) // 去掉每段前后空白
     .filter(Boolean) // 去掉空字符串
-  console.log('------2按照段落切分', res)
+  // console.log('------2按照段落切分', res)
   return res
 }
 
@@ -226,7 +226,7 @@ function splitByLength(text, maxLength = 1000, overlap = 100) {
     //向后移动，但是保留 overlap 部分上下文
     start = end - overlap
   }
-  console.log('------3按照固定长度切分', chunks)
+  // console.log('------3按照固定长度切分', chunks)
   return chunks
 }
 
@@ -254,12 +254,13 @@ function dealDocs(rootDir) {
     res1[i].chunksIndex = i
     res1[i].id = `${res1[i].metadata.filePath}${res1[i].chunksIndex}`
   }
-  console.log('------4最终结果', res1)
+  // console.log('------4最终结果', res1)
 
   return res1
 }
 
 // dealDocs('server\\data\\docs\\react')
 // dealDocs('server\\data\\docs\\vite')
-dealDocs('server\\data\\docs\\test')
 
+
+module.exports = dealDocs
