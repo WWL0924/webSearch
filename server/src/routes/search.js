@@ -1,6 +1,6 @@
 //返回list的接口
 const express = require('express');
-const searchList = require('../services/searchList');
+const searchList = require('../services/rag/ragSearch');
 
 //创建路由实例
 const router = express.Router();

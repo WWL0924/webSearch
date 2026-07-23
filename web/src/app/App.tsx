@@ -7,10 +7,12 @@ import './App.css'
 
 function App() {
   const [word, setWord] = useState('')
-  const [list, setList] = useState(['搜索js官方中文网站结果'])
+  const [list, setList] = useState(['检索react和vite网站切片'])
   const [data, setData] = useState('AI生成总结')
-  //1返回lsit
-  async function searchList(keyword: string, setState: (text: string[]) => void)
+
+
+  //1返回list
+  async function ragSearch(keyword: string, setState: (text: string[]) => void)
     : Promise<string[]> {
     //该网页无法正常运作
     const res = await fetch('/api/search', {
@@ -23,7 +25,7 @@ function App() {
       }),
     })
     if (!res.ok) {
-      throw new Error('获取搜索结果list失败')
+      throw new Error('检索rag知识库失败')
     }
     //这里直接渲染到页面上
     const list = (await res.json()) as string[]//数据预期是字符串数组
@@ -34,7 +36,9 @@ function App() {
 
   //2流式返回ai总结内容
   async function aiSummary(
-    keyword: string, list: string[], setState: (text: string) => void)
+    keyword: string,
+    list: string[],
+    setState: (text: string) => void)
     : Promise<string>  //最终返回字符串
   {
     //该网页无法正常运作
@@ -51,7 +55,7 @@ function App() {
     })
 
     if (!res.ok) {
-      throw new Error('发送数据失败')
+      throw new Error('发送LLM请求失败')
     }
     //读取流式输出
     // 获取响应体(ReadableStream)
@@ -119,11 +123,12 @@ function App() {
 
     //捕获异常
     try {
-      //这里先返回list
-      const list = await searchList(keyword, setList)
-      await aiSummary(keyword, list, setData) //这里只返回是summary
+      //1内容embedding
+      const list = await ragSearch(keyword, setList)
+      //2合成prompt调用ai
+      await aiSummary(keyword, list, setData)
     } catch (error) {
-      setList(['搜索失败,请稍后重试'])
+      setList([`rag检索失败`])
       setData(error instanceof Error ? error.message : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试')
     }
   }
@@ -131,8 +136,10 @@ function App() {
   return (
     <>
       <SearchForm word={word} onSearch={handleSearch} />
+
       {/* 显示搜索结果前五条 */}
       <ResultList list={list} />
+
       {/* 显示ai总结文本 */}
       <SummaryPanel data={data} />
     </>

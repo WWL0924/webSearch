@@ -7,7 +7,7 @@ dotenv.config()
 console.log('1---导入的key', process.env.DASHSCOPE_API_KEY)
 //启动服务 入口文件 总路由
 const express = require("express");
-const SearchRouter = require("./routes/search");
+const ragsearch = require("./routes/search");
 const AIRouter = require("./routes/ai");
 
 
@@ -17,7 +17,7 @@ const app = express();
 //注册中间件 
 app.use(express.json()); //前端接收的数据自动挂到req.body
 //挂载路由
-app.use('/api/search', SearchRouter);
+app.use('/api/search', ragsearch);
 app.use('/api/ai', AIRouter);
 
 

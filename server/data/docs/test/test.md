@@ -26,6 +26,7 @@ useState 用于给函数组件添加状态。
 
 ```js
 const [count, setCount] = useState(0)
+  console.log('这里是代码块的部分')
 ```
 
 ## useEffect

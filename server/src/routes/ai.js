@@ -3,7 +3,7 @@
 
 //返回summary的接口
 const express = require('express');
-const AIsummary = require('../services/AIsummary');
+const AIsummary = require('../services/rag/AIsummary');
 
 //创建路由实例
 const router = express.Router();
