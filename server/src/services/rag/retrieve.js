@@ -11,9 +11,27 @@ async function retrieve(embedding) {
     nResults: 5
   });
 
-  console.log('-------检查返回的字段', result)
-  //检查这里返回的字段
-  return result.documents[0]
+  // console.log('0********返回的result结构', result.metadatas[0][0])
+  let chunks = result.documents[0]
+
+  let metadatas = result.metadatas[0]
+
+  const res = chunks.map((chunk, index) => {
+
+    return {
+      ids: result.ids[index],
+      content: chunk,
+      source: metadatas[index].source,
+      title: metadatas[index].title,
+      filePath: metadatas[index].filePath,
+      type: metadatas[index].type,
+
+    }
+
+  })
+  // console.log('*****retrive返回的', typeof res, res)
+
+  return res
 }
 
 

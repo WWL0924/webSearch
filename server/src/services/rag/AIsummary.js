@@ -16,11 +16,15 @@ const client = new OpenAI({
 
 //根据提取出的内容给ai
 async function AIsummary(keyword, list, res) {
+  const contentArr = list.map(item => {
+    return item.content
+  })
+  console.log('****AIsummary处理', contentArr, contentArr.length)
   const prompt = `
 # 用户问题
 ${keyword}
 # 相关上下文
-${list}
+${contentArr}
 # 任务要求
 请根据上面的上下文回答用户问题。
 
@@ -30,7 +34,7 @@ ${list}
 3. 回答要简洁准确。
 4. 不要输出与问题无关的内容。
 `
-
+  console.log('********ai拼接的prompt', prompt)
 
   //你让 AI用流式方式把模型结果返回给Node服务
   const response = await client.responses.create({

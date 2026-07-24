@@ -23,7 +23,7 @@ async function indexDocs() {
 
   // 主检索库只存正文 chunk，代码块 chunk 暂时不参与普通语义检索
   const chunks = [...chunks1, ...chunks2].filter(chunk => chunk.metadata.type !== 'code')
-
+  //?这里代码块chunk没有存到向量数据库里么?这样处理是可以的么
 
   // 调用 embedding.js，把 chunks 转成向量
   const chunksEmbedding = await embeddingChunks(chunks)

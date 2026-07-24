@@ -18,7 +18,7 @@ async function chromaStore(chunks) {
       embeddings: batch.map(item => item.embedding)
     })
   }
-  console.log('-----存入chroma的向量维度', chunks[0].embedding.length)
+  // console.log('-----存入chroma的向量维度', chunks[0].embedding.length)
 }
 
 

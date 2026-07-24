@@ -4,16 +4,32 @@ import SearchForm from '../components/SearchForm'
 import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
 
-
+interface Chunk {
+  ids: string,
+  content: string
+  source: string
+  title: string
+  filePath: string
+  type: string
+}
 function App() {
   const [word, setWord] = useState('')
-  const [list, setList] = useState(['检索react和vite网站切片'])
+  const [list, setList] = useState<Chunk[]>([
+    {
+      ids: '',
+      content: '向量数据库检索',
+      source: '',
+      title: '',
+      filePath: '',
+      type: ''
+    }
+  ])
   const [data, setData] = useState('AI生成总结')
 
 
   //1返回list
-  async function ragSearch(keyword: string, setState: (text: string[]) => void)
-    : Promise<string[]> {
+  async function ragSearch(keyword: string, setState: (text: Chunk[]) => void)
+    : Promise<Chunk[]> {
     //该网页无法正常运作
     const res = await fetch('/api/search', {
       method: 'POST',
@@ -28,7 +44,7 @@ function App() {
       throw new Error('检索rag知识库失败')
     }
     //这里直接渲染到页面上
-    const list = (await res.json()) as string[]//数据预期是字符串数组
+    const list = (await res.json()) as Chunk[]//数据预期是对象数组
 
     setState(list)
     return await list
@@ -37,7 +53,7 @@ function App() {
   //2流式返回ai总结内容
   async function aiSummary(
     keyword: string,
-    list: string[],
+    list: Chunk[],
     setState: (text: string) => void)
     : Promise<string>  //最终返回字符串
   {
@@ -112,13 +128,31 @@ function App() {
 
     // 处理空值
     if (!keyword) {
-      setList(['请输入关键词'])
+      setList([
+        {
+          ids: '',
+          content: '请输入需要检索的问题',
+          source: '',
+          title: '',
+          filePath: '',
+          type: ''
+        }
+      ])
       setData('输入关键词后 ai分析给出总结')
       return
     }
 
     //加载状态
-    setList([`正在分析中,关键词${keyword}`])
+    setList([
+      {
+        ids: '',
+        content: `正在分析中`,
+        source: '',
+        title: '',
+        filePath: '',
+        type: ''
+      }
+    ])
     setData(`正在分析中,关键词${keyword}`)
 
     //捕获异常
@@ -128,7 +162,16 @@ function App() {
       //2合成prompt调用ai
       await aiSummary(keyword, list, setData)
     } catch (error) {
-      setList([`rag检索失败`])
+      setList([
+        {
+          ids: '',
+          content: '检索失败',
+          source: '',
+          title: '',
+          filePath: '',
+          type: ''
+        }
+      ])
       setData(error instanceof Error ? error.message : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试')
     }
   }

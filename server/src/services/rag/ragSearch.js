@@ -9,10 +9,10 @@ const retrieve = require('./retrieve')
 
 async function ragSearch(keyword) {
   const embedding = await embeddingKeywords(keyword)
-  console.log('1返回向量', embedding)
+  // console.log('1返回向量', embedding)
   const res = await retrieve(embedding)
-  console.log('ragsearch返回的字段', res)
-  //这里返回的字段要渲染到页面上
+  console.log('*******ragsearch中返回的字段', res)
+  //这里返回的字段要详细渲染到页面上
   return res
 }
 // ragSearch('react')

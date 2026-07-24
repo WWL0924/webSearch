@@ -5,7 +5,12 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon src/app.js",
+    "checkChroma": "node src/scripts/check/checkChroma.js",
+    "clearChroma": "node src/scripts/clear/clearChroma.js",
+    "clearTest": "node src/scripts/clear/clearTest.js",
+    "dealDocs": "node src/scripts/rag/dealDocs.js",
+    "indexDocs": "node src/scripts/rag/indexDocs.js"
   },
   "keywords": [
     "mdn",
