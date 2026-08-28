@@ -3,39 +3,36 @@ import ResultList from '../components/ResultList'
 import SearchForm from '../components/SearchForm'
 import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
+import type { ResultItem, SearchResponse } from '../types/search'
 
-interface Chunk {
-  ids: string,
-  content: string
-  source: string
-  title: string
-  filePath: string
-  type: string
-}
+
 function App() {
   const [word, setWord] = useState('')
-  const [list, setList] = useState<Chunk[]>([
-    {
-      ids: '',
-      content: '向量数据库检索',
-      source: '',
-      title: '',
-      filePath: '',
-      type: ''
-    }
-  ])
+  const [list, setList] = useState<ResultItem[]>(
+    [
+      {
+        ids: '',
+        content: '向量数据库检索',
+        source: '',
+        title: '',
+        filePath: '',
+        type: ''
+      }
+    ]
+  )
   const [data, setData] = useState('AI生成总结')
 
 
   //1返回list
-  async function ragSearch(keyword: string, setState: (text: Chunk[]) => void)
-    : Promise<Chunk[]> {
+  async function ragSearch(keyword: string, setState: (text: ResultItem[]) => void)
+    : Promise<ResultItem[]> {
     //该网页无法正常运作
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      //⚠️这里发送的json本身就是对象
       body: JSON.stringify({
         keyword,
       }),
@@ -44,16 +41,34 @@ function App() {
       throw new Error('检索rag知识库失败')
     }
     //这里直接渲染到页面上
-    const list = (await res.json()) as Chunk[]//数据预期是对象数组
+    const res1 = (await res.json()) as SearchResponse//数据预期是对象数组
 
-    setState(list)
-    return await list
+
+    if (!res1.noContent) {
+      setState(res1.resultList)
+      return await res1.resultList
+    } else {
+      //这里表示当前知识库没有相关资料
+      //?这里在ResultList板块应该怎么显示呢?直接这样传入可以吗
+      // return [{
+      //   ids: '',
+      //   content: '当前知识库没有相关资料',
+      //   source: '',
+      //   title: '',
+      //   filePath: '',
+      //   type: '',
+      //   distances: ''
+      // }]
+      //没有相关资料的情况下
+      setState([])
+      return []
+    }
   }
 
   //2流式返回ai总结内容
   async function aiSummary(
     keyword: string,
-    list: Chunk[],
+    list: ResultItem[],
     setState: (text: string) => void)
     : Promise<string>  //最终返回字符串
   {

@@ -1,9 +1,13 @@
 //从ai拿到片段 持续写出
 
 //导入
-const OpenAI = require("openai");//类
+import OpenAI from "openai";//类
+import type { AI } from '../../schemas/ai.schema.js'
+//express提供的响应类型
+import type { Response } from "express";
 
-
+type KeywordType = AI['keyword']
+type ListType = AI['list']
 
 //创建客户端
 const client = new OpenAI({
@@ -15,7 +19,8 @@ const client = new OpenAI({
 
 
 //根据提取出的内容给ai
-async function AIsummary(keyword, list, res) {
+async function AIsummary(keyword: KeywordType, list: ListType, res: Response) {
+
   const contentArr = list.map(item => {
     return item.content
   })
@@ -34,6 +39,14 @@ ${contentArr}
 3. 回答要简洁准确。
 4. 不要输出与问题无关的内容。
 `
+  //如果传的是空数组,直接返回
+  if (list.length === 0) {
+    console.log('********这里不调用LLM直接返回', prompt)
+
+    res.write('当前知识库没有相关资料')
+    res.end()
+    return
+  }
   console.log('********ai拼接的prompt', prompt)
 
   //你让 AI用流式方式把模型结果返回给Node服务
@@ -60,6 +73,6 @@ ${contentArr}
   res.end();
 }
 
-module.exports = AIsummary;
+export default AIsummary;
 
 //AIsummary('slice', '获取子字符串.JavaScript 中有三种获取字符串的方法：substring、substr 和 slice… str.slice(start [, end])返回字符串从 start 到（但不包括）end 的部分我们可以用 slice… 参数值类似于 array.slice，也允许是负数slice.arr.slice… 它和字符串的 str.slice 方法有点像，就是把子字符串替换成子数组然后，我们可以使用 Blob 和 slice 方法来发送从 startByte 开始的文件：我们甚至可以基于 Array.from 创建代理感知（surrogate-aware）的slice 方法（译注：也就是能够处理 UTF-16 扩展字符的 slice 方法）：')

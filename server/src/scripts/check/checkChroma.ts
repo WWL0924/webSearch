@@ -1,11 +1,11 @@
 //检查chroma
 
-
-const { getCollection } = require('../../services/rag/chromaClient')
+import type { Collection } from 'chromadb'
+import { getCollection } from '../../services/rag/chromaClient.js'
 
 
 //1按照来源检查
-async function checkBySource(source, collection) {
+async function checkBySource(source: string, collection: Collection) {
 
   const res = await collection.get({
     where: { source },

@@ -1,6 +1,6 @@
 //清除collection,整个向量数据库
 
-const { client } = require('../../services/rag/chromaClient')
+import { client } from '../../services/rag/chromaClient.js'
 
 
 

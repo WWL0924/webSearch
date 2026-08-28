@@ -1,0 +1,3 @@
+不能将类型“{ embedding: number[]; content: string; metadata: { source: string; filePath: string; title: string; type: string; length: number; }; }[]”分配给类型“ChunkWithEmbedding[]”。
+  不能将类型“{ embedding: number[]; content: string; metadata: { source: string; filePath: string; title: string; type: string; length: number; }; }”分配给类型“ChunkWithEmbedding”。
+    类型“{ embedding: number[]; content: string; metadata: { source: string; filePath: string; title: string; type: string; length: number; }; }”缺少类型“{ id: string; chunksIndex: number; embedding: number[]; }”中的以下属性: id, chunksIndex

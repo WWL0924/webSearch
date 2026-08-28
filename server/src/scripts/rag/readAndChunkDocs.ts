@@ -1,11 +1,49 @@
 // 扫描 server/data/docs 下的 Markdown 文档
 // 返回文档列表，并读取、清洗、切片成 RAG 可用的 chunks
 
-const fs = require('fs')
-const path = require('path')
+import fs from 'node:fs'
+import path from 'node:path'
+import type { Chunk } from '../../types/rag.js'
+
+
+//文档列表
+type ListType = {
+  // 文档根目录
+  source: string,
+  // 文档绝对路径
+  absPath: string,
+  // 相对 rootDir 的文档路径
+  filePath: string,
+  content: string
+}
+
+//代码块
+type CodeBlocksType = {
+  lang: string,
+  content: string
+}
+
+type SplitCodeBlocksType = {
+  textContent: string,
+  codeBlocks: CodeBlocksType[]
+}
+
+//
+type CutTextContentType = {
+  content: string,
+  type: string
+}
+
+//
+type SectionType = {
+  title: string,
+  content: string,
+  length: number,
+}
+
 
 // 判断文件是否是 Markdown 或 MDX 文件
-function isMarkdownFile(fileName) {
+function isMarkdownFile(fileName: string) {
   let tip = path.extname(fileName)
   if (tip === '.md' || tip === '.mdx') {
     return true
@@ -14,7 +52,7 @@ function isMarkdownFile(fileName) {
 
 // 递归遍历目录，返回符合条件的文档文件列表
 // currentDir 是当前扫描目录，rootDir 是相对路径计算的根目录
-function scanDocs(currentDir, rootDir) {
+function scanDocs(currentDir: string, rootDir: string): ListType[] {
   // 读取当前目录下的所有文件和子目录
   let Dirent = fs.readdirSync(currentDir, { withFileTypes: true })
   let list = []
@@ -31,6 +69,7 @@ function scanDocs(currentDir, rootDir) {
         absPath: absPath,
         // 相对 rootDir 的文档路径
         filePath: path.relative(rootDir, absPath),
+        content: ''
       })
     }
     if (item.isDirectory()) {
@@ -45,7 +84,7 @@ function scanDocs(currentDir, rootDir) {
 }
 
 
-function loadDocs(list) {
+function loadDocs(list: ListType[]): ListType[] {
   for (let item of list) {
     console.log('---------', item.absPath)
     let content = fs.readFileSync(item.absPath, 'utf8')
@@ -56,7 +95,7 @@ function loadDocs(list) {
 }
 
 // 清洗文档正文，去掉不适合参与检索的内容
-function cleanDocs(list) {
+function cleanDocs(list: ListType[]): ListType[] {
   for (let item of list) {
     // 使用正则清理 frontmatter、HTML 注释、过多空行、独立链接和编辑入口
     item.content = item.content.replace(
@@ -83,7 +122,7 @@ function cleanDocs(list) {
 }
 
 // 按标题优先切分；正文和代码块分开处理，避免代码片段污染语义检索
-function cutDocs(lists) {
+function cutDocs(lists: ListType[]): Chunk[] {
   let chunks = []
   // 如果正文段落仍然过长，再按固定长度切分
   // 最终把所有 chunk push 到 chunks
@@ -91,7 +130,7 @@ function cutDocs(lists) {
     // 先按标题切成多个 section
     let sections = splitByHeadings(list.content)
 
-    let maxLength = 1000
+    let maxLength = 500
     // let maxLength = 100 // 测试用长度
     for (let section of sections) {
       //这里返回的是去掉代码块的正文,从正文中提取出的代码块数组
@@ -127,7 +166,7 @@ function cutDocs(lists) {
         //     length: codeBlock.content.length
         //   }
         // })
-        console.log('0-----------保存代码块')
+        // console.log('0-----------保存代码块')
         chunks.push({
           content: codeBlock.content,
 
@@ -146,9 +185,9 @@ function cutDocs(lists) {
   return chunks
 }
 
-function splitCodeBlocks(content) {
+function splitCodeBlocks(content: string): SplitCodeBlocksType {
   //存放代码块
-  let codeBlocks = []
+  let codeBlocks: CodeBlocksType[] = []
 
   let textContent = content.replace(/```([^\n]*)\n([\s\S]*?)```/g,
     //当正则匹配到内容时，会执行这个函数，并把匹配结果传进来。
@@ -170,8 +209,8 @@ function splitCodeBlocks(content) {
   }
 }
 
-function cutTextContent(content, maxLength) {
-  let chunks = []
+function cutTextContent(content: string, maxLength: number): CutTextContentType[] {
+  let chunks: CutTextContentType[] = []
 
   if (!content) {
     return chunks
@@ -188,7 +227,7 @@ function cutTextContent(content, maxLength) {
 
   // 如果 section 太长，继续按段落拆分
   // 按空行切分段落
-  let paragraphs = splitByParagraph(content)
+  let paragraphs = splitByParagraph(content, maxLength)
   for (let paragraph of paragraphs) {
     // 段落不超过最大长度时，直接生成 paragraph chunk
     if (paragraph.length <= maxLength) {
@@ -213,7 +252,7 @@ function cutTextContent(content, maxLength) {
 }
 
 // 按 Markdown 标题切分文档内容
-function splitByHeadings(content) {
+function splitByHeadings(content: string): SectionType[] {
   const lines = content.split('\n')
   const sections = []
   let currentLines = [], currentTitle = 'Document'
@@ -251,7 +290,7 @@ function splitByHeadings(content) {
 }
 
 // 按段落切分 section 内容
-function splitByParagraph(section, maxLength) {
+function splitByParagraph(section: string, maxLength: number) {
   let res = section
     .split(/\r?\n\r?\n+/) // 按一个或多个空行切分段落
     .map(item => item.trim()) // 去掉每段前后的空白
@@ -263,7 +302,7 @@ function splitByParagraph(section, maxLength) {
 
 
 // 按固定长度切分文本
-function splitByLength(text, maxLength = 1000, overlap = 100) {
+function splitByLength(text: string, maxLength = 500, overlap = 100) {
   let chunks = []
   let start = 0
 
@@ -282,7 +321,7 @@ function splitByLength(text, maxLength = 1000, overlap = 100) {
 }
 
 
-function dealDocs(rootDir) {
+function dealDocs(rootDir: string): Chunk[] {
   // 1. 扫描文档文件列表
   let list1 = scanDocs(rootDir, rootDir)
   // 2. 读取文档正文
@@ -293,8 +332,14 @@ function dealDocs(rootDir) {
   let res1 = cutDocs(list3)
   // 给每个 chunk 添加 chunksIndex 和唯一 id
   for (let i = 0; i < res1.length; i++) {
-    res1[i].chunksIndex = i
-    res1[i].id = `${res1[i].metadata.filePath}${res1[i].chunksIndex}`
+    //这里要首先判断当前元素是否存在
+    const chunk = res1[i]
+
+    if (!chunk) {
+      continue
+    }
+    chunk.chunksIndex = i
+    chunk.id = `${chunk.metadata.filePath}${chunk.chunksIndex}`
   }
   // console.log('------4 最终结果', res1)
 
@@ -305,4 +350,4 @@ function dealDocs(rootDir) {
 // dealDocs('server\\data\\docs\\vite')
 
 
-module.exports = dealDocs
+export default dealDocs

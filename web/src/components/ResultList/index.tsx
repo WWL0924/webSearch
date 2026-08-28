@@ -1,19 +1,9 @@
 import { Card } from 'antd'
 import ChunkCard from './ChunkCard'
-
-
-interface Chunk {
-  ids: string,
-  content: string
-  source: string
-  title: string
-  filePath: string
-  type: string
-}
-
+import type { ResultItem } from '../../types/search'
 
 interface ResultListProps {
-  list: Chunk[]
+  list: ResultItem[]
 }
 
 function ResultList({ list }: ResultListProps) {
@@ -22,12 +12,16 @@ function ResultList({ list }: ResultListProps) {
       title="向量数据库检索结果"
       style={{ width: 500 }}
     >
-
       {
-        list.map((item, index) => (
-          <ChunkCard Chunk={item} index={index} key={item.ids} />
-
-        ))
+        list.length === 0
+          ? <span>当前知识库没有相关资料</span>
+          : list.map((item, index) => (
+            <ChunkCard
+              Chunk={item}
+              index={index}
+              key={item.ids}
+            />
+          ))
       }
     </Card>
   )

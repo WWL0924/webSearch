@@ -1,10 +1,11 @@
 import { Card } from "antd"
-import type { ResultItem } from '../../../types/search'
+import type { ResultItem } from '../../types/search'
 
 interface ChunkCardProps {
   Chunk: ResultItem,
   index: number
 }
+
 
 function ChunkCard({ Chunk, index }: ChunkCardProps) {
 
@@ -13,9 +14,8 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
     <Card
       size="small"
       style={{
-        marginBottom: 16, width: 500, height: 300
+        marginBottom: 16
       }}
-
       title={`第${index + 1}条`}
     >
 
@@ -43,7 +43,7 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
 
       </ul>
 
-    </Card >
+    </Card>
 
   )
 }

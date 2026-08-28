@@ -2,16 +2,33 @@
 
 
 //返回summary的接口
-const express = require('express');
-const AIsummary = require('../services/rag/AIsummary');
+import express from 'express';
+import AIsummary from '../services/rag/AIsummary.js';
+import { aiSchema } from '../schemas/ai.schema.js'
+
+import type { Request, Response } from 'express';
 
 //创建路由实例
 const router = express.Router();
 
 
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
-    const { keyword = '', list = '' } = req.body;
+    //用 aiSchema规则检查前端传过来的 req.body 是否符合要求。
+    const result = aiSchema.safeParse(req.body)
+    console.log('*********这里返回的result数据', result)
+    //      success: true,
+    //   data: {
+    //     keyword: '常用的hooks',
+    //     list: [ [Object], [Object], [Object], [Object], [Object] ]
+    //   }
+    // }
+    //判断是否失败 
+    if (!result.success) {
+      return
+    }
+    const { keyword, list } = result.data
+    // const { keyword, list } = result;
     console.log('1ai-----解析keyword', keyword)
     //设置流式响应头
     //响应头发给前端 前端更早进入读取状态
@@ -53,4 +70,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

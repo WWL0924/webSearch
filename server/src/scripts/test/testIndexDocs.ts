@@ -1,12 +1,12 @@
 //这里用于测试是否能存入向量数据库
 
 //批处理脚本
-const {
+import {
   embeddingChunks,
   embeddingKeywords
-} = require('../../services/rag/embedding')
-const dealDocs = require("../rag/dealDocs")
-const chromaStore = require('../../services/rag/chromaStore')
+} from '../../services/rag/embedding.js'
+import dealDocs from "../rag/readAndChunkDocs.js"
+import chromaStore from '../../services/rag/chromaStore.js'
 
 
 async function indexDocs() {

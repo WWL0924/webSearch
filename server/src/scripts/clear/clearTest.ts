@@ -1,7 +1,7 @@
 //删除测试存入的内容
 //这里是脚本,不需要导出
 
-const { getCollection } = require('../../services/rag/chromaClient')
+import { getCollection } from '../../services/rag/chromaClient.js'
 
 
 
