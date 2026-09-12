@@ -48,5 +48,4 @@ type ChunkMetadata = {
 }
 
 
-
 export type { ChromaChunks, Chunk, ChunksWithEmbedding, ChunkWithEmbedding, SearchResultItem, ChunkMetadata }

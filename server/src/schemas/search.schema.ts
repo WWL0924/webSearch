@@ -4,8 +4,8 @@ import { z } from "zod"
 
 export const searchSchema = z.object({
   keyword: z.string(),
+  sources: z.array((z.string())).optional() //这里可以允许多个来源
+
 })
-
-
 
 export type Search = z.infer<typeof searchSchema>;

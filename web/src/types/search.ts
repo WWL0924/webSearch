@@ -14,3 +14,9 @@ export interface SearchResponse {
   resultList: ResultItem[]
 }
 
+//select配置项类型
+type selectiOption = {
+  label: string,
+  value: string
+}
+export type TypeSelectiOptions = selectiOption[]

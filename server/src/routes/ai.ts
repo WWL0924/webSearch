@@ -25,7 +25,10 @@ router.post('/', async (req: Request, res: Response) => {
     // }
     //判断是否失败 
     if (!result.success) {
-      return
+      return res.status(400).json({
+        message: '参数错误',
+        error: result.error
+      })
     }
     const { keyword, list } = result.data
     // const { keyword, list } = result;
@@ -49,21 +52,21 @@ router.post('/', async (req: Request, res: Response) => {
     //1没开始 
     if (!res.headersSent) {
       //普通错误返回
-      console.log('---------------响应还没开始', error)
+      console.error('---------------响应还没开始', error)
       res.status(500).json(['后端返回失败', '错误' + error]);
     }
     //2开始响应但是还没结束
     else if (res.headersSent && !res.writableEnded) {
 
-      //记录错误结束流
-      res.write('这里出现了错误' + error)
-      //结束
-      res.end();
+      return res.status(500).json({
+        message: '后端返回失败'
+      })
     }
     //3已经结束
     else if (res.writableEnded) {
       //记录日志
-      console.log('响应结束时出错', error)
+      res.write(`这里出现错误${error}`)
+      res.end()
     }
 
 

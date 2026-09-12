@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ResultList from '../components/ResultList'
 import SearchForm from '../components/SearchForm'
 import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
-import type { ResultItem, SearchResponse } from '../types/search'
+import type { ResultItem, SearchResponse, TypeSelectiOptions } from '../types/search'
+
+import { Select } from 'antd'
 
 
 function App() {
@@ -21,7 +23,41 @@ function App() {
     ]
   )
   const [data, setData] = useState('AI生成总结')
+  //用户显示选择sources
+  const [selectedSources, setSelectedSources] = useState<string[]>([])
+  //select列表
+  const [selectiOptions, setSelectioptions] = useState<TypeSelectiOptions>([])
 
+
+
+  //1页面初次加载获取select配置项
+  useEffect(() => {
+    async function fetchSelect() {
+      try {
+        const res = await fetch('/api/sources')
+
+        if (!res.ok) {
+          throw new Error('获取来源配置失败')
+        }
+
+        const data = (await res.json()) as TypeSelectiOptions
+        setSelectioptions(data)
+      } catch (error) {
+        console.error('获取来源列表失败', error)
+        setSelectioptions([])
+      }
+    }
+
+    fetchSelect()
+  }, [])
+
+
+
+  //获取用户选择的source
+  function handleSourceChange(values: string[]) {
+    console.log('用户选择的source', values)
+    setSelectedSources(values)
+  }
 
   //1返回list
   async function ragSearch(keyword: string, setState: (text: ResultItem[]) => void)
@@ -32,9 +68,10 @@ function App() {
       headers: {
         'Content-Type': 'application/json',
       },
-      //⚠️这里发送的json本身就是对象
+      //这里发送的json本身就是对象
       body: JSON.stringify({
         keyword,
+        sources: selectedSources//前端选择的source返回后端
       }),
     })
     if (!res.ok) {
@@ -72,6 +109,7 @@ function App() {
     setState: (text: string) => void)
     : Promise<string>  //最终返回字符串
   {
+    console.log('ai总结开始执行')
     //该网页无法正常运作
     //请求头
     const res = await fetch('/api/ai', {
@@ -91,6 +129,7 @@ function App() {
     //读取流式输出
     // 获取响应体(ReadableStream)
     const reader = res.body?.getReader()
+    console.log('获取响应体', reader)
 
     if (!reader) {
       throw new Error('无法读取流')
@@ -103,9 +142,12 @@ function App() {
     while (true) {
       // 读取下一段数据
       const { done, value } = await reader.read()
+      console.log('read结果:', { done, value })
 
       // 流结束 退出循环
       if (done) {
+        console.log('前端读取流结束')
+
         break
       }
 
@@ -114,16 +156,12 @@ function App() {
 
       // 拼接最终结果
       result += chunk
-
+      console.log('拼接出的最终结果', result)
       // 通知外部更新UI
       setState(result)
     }
-
-
     //拿到最终完成结果
     return result
-
-
   }
 
   // // 接收数据 根据结果更新页面
@@ -169,14 +207,15 @@ function App() {
       }
     ])
     setData(`正在分析中,关键词${keyword}`)
-
     //捕获异常
     try {
       //1内容embedding
       const list = await ragSearch(keyword, setList)
+      console.log('后端返回的切片到达前端', list)
       //2合成prompt调用ai
       await aiSummary(keyword, list, setData)
-    } catch (error) {
+    }
+    catch (error) {
       setList([
         {
           ids: '',
@@ -194,7 +233,12 @@ function App() {
   return (
     <>
       <SearchForm word={word} onSearch={handleSearch} />
-
+      {/* 选择来源组件 */}
+      <Select
+        mode="multiple"
+        options={selectiOptions}
+        onChange={handleSourceChange}
+      />
       {/* 显示搜索结果前五条 */}
       <ResultList list={list} />
 

@@ -52,23 +52,23 @@ ${contentArr}
   //你让 AI用流式方式把模型结果返回给Node服务
   const response = await client.responses.create({
     //模型
-    //这里要换成回复更快的模型么
-    model: 'qwen-plus',
+    model: 'qwen3.8-flash',
     input: prompt,
     //开启流式传输
     stream: true
   });
-
+  console.log('开启流式传输')
 
   //不断监听ai返回的数据
   for await (const event of response) {
+    console.log('ai事件监听', event.type, event)
     //如果是新增的文本
     if (event.type === "response.output_text.delta") {
       //发送给前端
       res.write(event.delta);
     }
   }
-
+  console.log('结束流式传输')
   //最后结束
   res.end();
 }
