@@ -1,8 +1,8 @@
 //写入chunks
 import { getCollection } from './chromaClient.js';
-async function chromaStore(chunks) {
+async function chromaStore(chunks, collectionName = 'knowledge-base') {
     const batchSize = 1000;
-    const collection = await getCollection();
+    const collection = await getCollection(collectionName);
     console.log('***chunks类型判断', chunks[0]);
     for (let i = 0; i < chunks.length; i += batchSize) {
         // → 调用 Chroma 写入

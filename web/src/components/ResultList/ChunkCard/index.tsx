@@ -13,10 +13,12 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
     <Card
       size="small"
       style={{
-        marginBottom: 16, width: 500, height: 300
+        marginBottom: 16
       }}
 
-      title={`第${index + 1}条`}
+      title={Chunk.type === 'code'
+        ? `代码示例 ${index + 1}${Chunk.lang ? ` · ${Chunk.lang}` : ''}`
+        : `第${index + 1}条`}
     >
 
       <ul>
@@ -27,8 +29,30 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
         </li>
 
         <li>
+          章节：
+          {Chunk.section}
+        </li>
+
+        <li>
           来源：
-          {Chunk.source}
+          {Chunk.sourceUrl
+            ? <a href={Chunk.sourceUrl} target="_blank" rel="noreferrer">{Chunk.sourceUrl}</a>
+            : Chunk.source}
+        </li>
+
+        <li>
+          文件：
+          {Chunk.filePath}
+        </li>
+
+        <li>
+          Chunk 标识：
+          {Chunk.ids}
+        </li>
+
+        <li>
+          Chunk 序号：
+          {Chunk.chunkIndex}
         </li>
 
         <li>
@@ -38,7 +62,9 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
 
         <li>
           文本：
-          {Chunk.content}
+          {Chunk.type === 'code'
+            ? <pre className="code-result"><code>{Chunk.content}</code></pre>
+            : Chunk.content}
         </li>
 
       </ul>

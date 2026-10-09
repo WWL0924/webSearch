@@ -2,17 +2,19 @@ import { getCollection } from './chromaClient.js';
 import extractKeywords from './extractKeywords.js';
 //只读配置对象
 const RAG_CONFIG = {
-    nResults: 20, //chroma查询返回数量
+    nResults: 30, //chroma查询返回数量 (增加候选数量)
     //!这里命中知识库的阈值太低?
     hitDistance: 1, //知识库命中阈值
     filterDistance: 0.76, //距离过滤阈值
     fallbackLimit: 3, //普通结果返回数量
-    resultLimit: 5, //过滤之后返回数量
+    resultLimit: 10, //过滤之后返回数量 (5→10 返回更多结果)
+    maxChunksPerFile: 3, //同一文件最多保留的chunk数量
+    codeResultLimit: 3, //关联代码块最多返回数量
     titleBoost: 0.05, //标题加权值
     filePathBoost: 0.03, //文件路径配置
 };
 async function retrieve(embedding, keyword, sources = []) {
-    const collection = await getCollection();
+    const collection = await getCollection(); //默认查询文本
     // console.log('检查collection', collection)
     console.log('传入retrive的source', sources);
     const where = sources.length > 0
@@ -55,7 +57,11 @@ async function retrieve(embedding, keyword, sources = []) {
             typeof metadata.source !== 'string' ||
             typeof metadata.filePath !== 'string' ||
             typeof metadata.title !== 'string' ||
-            typeof metadata.type !== 'string') {
+            typeof metadata.section !== 'string' ||
+            typeof metadata.sourceUrl !== 'string' ||
+            typeof metadata.chunkIndex !== 'number' ||
+            typeof metadata.type !== 'string' ||
+            typeof metadata.parentSectionId !== 'string') {
             throw new Error(`第 ${index} 条检索结果的 metadata 不完整`);
         }
         //2校验distance
@@ -68,8 +74,13 @@ async function retrieve(embedding, keyword, sources = []) {
             content: chunks[index],
             source: metadata.source,
             title: metadata.title,
+            section: metadata.section,
+            sourceUrl: metadata.sourceUrl,
             filePath: metadata.filePath,
+            chunkIndex: metadata.chunkIndex,
             type: metadata.type,
+            parentSectionId: metadata.parentSectionId,
+            ...(typeof metadata.lang === 'string' ? { lang: metadata.lang } : {}),
             distances: distancesTips,
             rankScore: distancesTips
         };
@@ -108,20 +119,37 @@ async function retrieve(embedding, keyword, sources = []) {
         //然后根据rankScore升序排序
         let res2 = res1.sort((a, b) => a.rankScore - b.rankScore);
         console.log('2********根据rankscore升序排序');
-        //3同一个filePath,保留distance最小的那一条
+        //3同一个filePath,最多保留maxChunksPerFile条
         const fileMap = new Map();
         res2.forEach(item => {
-            //?这里进行去重操作么?
-            const oldItem = fileMap.get(item.filePath); //寻找当前路径
-            //没有存过当前路径和更相关的替换掉旧
-            if (!oldItem || item.rankScore < oldItem.rankScore) {
-                fileMap.set(item.filePath, item); //这里会更新旧值
+            const filePath = item.filePath;
+            const existingItems = fileMap.get(filePath) || [];
+            //如果该文件的chunk数量未达到上限,直接添加
+            if (existingItems.length < RAG_CONFIG.maxChunksPerFile) {
+                existingItems.push(item);
+                fileMap.set(filePath, existingItems);
+            }
+            //如果已达上限,判断是否比现有的更相关
+            else {
+                //找到现有chunks中rankScore最大(最不相关)的
+                const maxScoreIndex = existingItems.reduce((maxIdx, curr, idx, arr) => {
+                    const maxItem = arr[maxIdx];
+                    if (!maxItem)
+                        return maxIdx;
+                    return curr.rankScore > maxItem.rankScore ? idx : maxIdx;
+                }, 0);
+                const maxScoreItem = existingItems[maxScoreIndex];
+                //如果当前item更相关,替换掉最不相关的那个
+                if (maxScoreItem && item.rankScore < maxScoreItem.rankScore) {
+                    existingItems[maxScoreIndex] = item;
+                }
             }
         });
-        const uniqueFiles1 = Array.from(fileMap.values());
-        //根据rankScore,升序排序
-        const uniqueFiles = uniqueFiles1.sort((a, b) => a.rankScore - b.rankScore);
-        console.log('3********去重路径之后的', uniqueFiles, uniqueFiles.length);
+        //将Map中的数组展平,并按rankScore排序
+        const uniqueFiles = Array.from(fileMap.values())
+            .flat()
+            .sort((a, b) => a.rankScore - b.rankScore);
+        console.log('3********限制每文件chunk数后的结果', uniqueFiles.length, '条');
         //去重路径后为空,返回相近的前三条
         if (uniqueFiles.length === 0) {
             console.log('过滤后为空,返回相近的前三条', uniqueFiles.length);
@@ -130,7 +158,7 @@ async function retrieve(embedding, keyword, sources = []) {
                 resultList: res.slice(0, RAG_CONFIG.fallbackLimit)
             };
         }
-        //否则返回去重后的前五条
+        //否则返回前10条
         else {
             return {
                 noContent: false,
@@ -146,5 +174,58 @@ async function retrieve(embedding, keyword, sources = []) {
         };
     }
 }
+//根据正文检索对应代码块
+async function retrieveCodeBySections({ parentSectionIds, sources = [] }) {
+    if (parentSectionIds.length === 0) {
+        return [];
+    }
+    //获取代码的collection
+    const collection = await getCollection('code-examples');
+    //根据parentSectionIds找和正文相同章节的code
+    const where = {
+        parentSectionId: { $in: parentSectionIds }
+    };
+    //这里是精确筛选
+    const result = await collection.get({
+        where, //按照明确条件找记录
+        include: ['documents', 'metadatas']
+    });
+    const documents = result.documents;
+    const metadatas = result.metadatas;
+    return result.ids.flatMap((id, index) => {
+        const content = documents[index];
+        const metadata = metadatas[index];
+        if (typeof content !== 'string' ||
+            !metadata ||
+            typeof metadata.source !== 'string' ||
+            (sources.length > 0 && !sources.includes(metadata.source)) ||
+            typeof metadata.filePath !== 'string' ||
+            typeof metadata.title !== 'string' ||
+            typeof metadata.section !== 'string' ||
+            typeof metadata.sourceUrl !== 'string' ||
+            typeof metadata.chunkIndex !== 'number' ||
+            typeof metadata.type !== 'string' ||
+            typeof metadata.parentSectionId !== 'string') {
+            return [];
+        }
+        //返回符合要求的代码块
+        return [{
+                ids: id,
+                content,
+                source: metadata.source,
+                title: metadata.title,
+                section: metadata.section,
+                sourceUrl: metadata.sourceUrl,
+                filePath: metadata.filePath,
+                chunkIndex: metadata.chunkIndex,
+                type: metadata.type,
+                parentSectionId: metadata.parentSectionId,
+                ...(typeof metadata.lang === 'string' ? { lang: metadata.lang } : {}),
+                distances: 0,
+                rankScore: 0
+            }];
+    }).slice(0, RAG_CONFIG.codeResultLimit);
+}
+export { retrieveCodeBySections };
 export default retrieve;
 //# sourceMappingURL=retrieve.js.map

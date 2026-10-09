@@ -4,9 +4,9 @@ import { getCollection } from './chromaClient.js'
 import type { ChromaChunks } from '../../types/rag.js'
 
 
-async function chromaStore(chunks: ChromaChunks[]) {
+async function chromaStore(chunks: ChromaChunks[], collectionName = 'knowledge-base') {
   const batchSize = 1000
-  const collection = await getCollection()
+  const collection = await getCollection(collectionName)
   console.log('***chunks类型判断', chunks[0])
 
 

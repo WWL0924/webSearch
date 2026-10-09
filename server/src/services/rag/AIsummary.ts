@@ -5,31 +5,40 @@ import OpenAI from "openai";//类
 import type { AI } from '../../schemas/ai.schema.js'
 //express提供的响应类型
 import type { Response } from "express";
+import { env } from '../../config/env.js'
 
 type KeywordType = AI['keyword']
-type ListType = AI['list']
+type chunkListType = AI['list']
 
 //创建客户端
 const client = new OpenAI({
   // 必须指定阿里云的兼容接口地址
   baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   // key
-  apiKey: process.env.DASHSCOPE_API_KEY,
+  apiKey: env.DASHSCOPE_API_KEY,
 });
 
 
 //根据提取出的内容给ai
-async function AIsummary(keyword: KeywordType, list: ListType, res: Response) {
-
+async function AIsummary(keyword: KeywordType, list: chunkListType, codeResults: chunkListType, res: Response) {
+  console.log('######传入的文本和代码', list, ",", codeResults)
   const contentArr = list.map(item => {
     return item.content
   })
   console.log('****AIsummary处理', contentArr, contentArr.length)
+
+  //代码块单独列出，避免和正文混在一起影响总结
+  const codeArr = (codeResults ?? []).map(item => {
+    return `\`\`\`${item.lang ?? ''}\n${item.content}\n\`\`\``
+  })
+  console.log('$$$$有代码结果', codeArr)
+
   const prompt = `
 # 用户问题
 ${keyword}
 # 相关上下文
 ${contentArr}
+${codeArr.length > 0 ? `# 相关代码示例\n${codeArr.join('\n\n')}\n` : ''}
 # 任务要求
 请根据上面的上下文回答用户问题。
 
@@ -38,6 +47,7 @@ ${contentArr}
 2. 如果上下文没有相关信息，请明确说明不知道。
 3. 回答要简洁准确。
 4. 不要输出与问题无关的内容。
+5. 如果相关代码示例对回答有帮助，可结合代码说明用法；无关则忽略。
 `
   //如果传的是空数组,直接返回
   if (list.length === 0) {
@@ -61,7 +71,7 @@ ${contentArr}
 
   //不断监听ai返回的数据
   for await (const event of response) {
-    console.log('ai事件监听', event.type, event)
+    // console.log('ai事件监听', event.type, event)
     //如果是新增的文本
     if (event.type === "response.output_text.delta") {
       //发送给前端

@@ -2,13 +2,35 @@ import { z } from "zod";
 export declare const aiSchema: z.ZodObject<{
     keyword: z.ZodString;
     list: z.ZodArray<z.ZodObject<{
-        ids: z.ZodString;
+        ids: z.ZodOptional<z.ZodString>;
         content: z.ZodString;
         source: z.ZodString;
         title: z.ZodString;
-        filePath: z.ZodString;
-        type: z.ZodString;
+        section: z.ZodString;
+        sourceUrl: z.ZodString;
+        filePath: z.ZodOptional<z.ZodString>;
+        chunkIndex: z.ZodOptional<z.ZodNumber>;
+        type: z.ZodOptional<z.ZodString>;
+        parentSectionId: z.ZodOptional<z.ZodString>;
+        lang: z.ZodOptional<z.ZodString>;
+        distances: z.ZodOptional<z.ZodNumber>;
+        rankScore: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
+    codeResults: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        ids: z.ZodOptional<z.ZodString>;
+        content: z.ZodString;
+        source: z.ZodString;
+        title: z.ZodString;
+        section: z.ZodString;
+        sourceUrl: z.ZodString;
+        filePath: z.ZodOptional<z.ZodString>;
+        chunkIndex: z.ZodOptional<z.ZodNumber>;
+        type: z.ZodOptional<z.ZodString>;
+        parentSectionId: z.ZodOptional<z.ZodString>;
+        lang: z.ZodOptional<z.ZodString>;
+        distances: z.ZodOptional<z.ZodNumber>;
+        rankScore: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 export type AI = z.infer<typeof aiSchema>;
 //# sourceMappingURL=ai.schema.d.ts.map

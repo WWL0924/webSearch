@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
                 error: result.error
             });
         }
-        const { keyword, list } = result.data;
+        const { keyword, list, codeResults = [] } = result.data;
         // const { keyword, list } = result;
         console.log('1ai-----解析keyword', keyword);
         //设置流式响应头
@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
         //发送响应头
         res.flushHeaders();
         //这里不要直接返回 是流式返回
-        await AIsummary(keyword, list, res);
+        await AIsummary(keyword, list, codeResults, res);
     }
     catch (error) {
         //判断响应阶段

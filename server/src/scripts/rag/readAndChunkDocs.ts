@@ -3,7 +3,8 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Chunk } from '../../types/rag.js'
+import type { Chunk, IndexedChunk } from '../../types/rag.js'
+import officialSources from '../../config/officialSources.js'
 
 
 //文档列表
@@ -14,6 +15,8 @@ type ListType = {
   absPath: string,
   // 相对 rootDir 的文档路径
   filePath: string,
+  // 文档页面标题
+  title: string,
   content: string
 }
 
@@ -41,6 +44,57 @@ type SectionType = {
   length: number,
 }
 
+function normalizePath(value: string) {
+  return value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+}
+
+function extractPageTitle(content: string, filePath: string) {
+  // 优先读取 frontmatter 标题，没有时再使用一级标题或文件名。
+  const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  const frontmatterTitle = frontmatter?.[1]
+    ?.match(/^title:\s*(.+)$/m)?.[1]
+    ?.trim().replace(/^['"]|['"]$/g, '')
+  if (frontmatterTitle) {
+    return frontmatterTitle
+  }
+
+  const headingTitle = content.match(/^#\s+(.+?)(?:\s+\{#.*\})?$/m)?.[1]?.trim()
+  return headingTitle || path.basename(filePath, path.extname(filePath))
+}
+
+function buildSourceUrl(source: string, filePath: string, filePathRootDir: string) {
+  // 本地 filePath 相对于公共 data/docs，先转换为相对于当前来源目录的路径。
+  const sourceConfig = officialSources.find(
+    item => normalizePath(item.source) === normalizePath(source)
+  )
+  if (!sourceConfig) {
+    return ''
+  }
+
+  const absoluteFilePath = path.resolve(filePathRootDir, filePath)
+  const absoluteSourcePath = path.resolve(source)
+  const sourceRelativeFilePath = path.relative(
+    absoluteSourcePath,
+    absoluteFilePath
+  )
+
+  // 来源相对路径才是官方文档 URL 需要的路由路径，避免重复拼接来源目录。
+  const routePath = sourceRelativeFilePath
+    .replace(/\\/g, '/') //转换为url路径
+    .replace(/\.(md|mdx)$/, '') //去掉文件后缀
+    .replace(/\/index$/, '')
+  const route = routePath === 'index' ? '' : routePath
+  return `${sourceConfig.baseUrl}${sourceConfig.urlPrefix}${route ? `/${route}` : ''}`
+}
+
+function normalizeSectionTitle(title: string) {
+  return title.replace(/\s*\{#.*\}\s*$/, '').trim()
+}
+
+function buildSectionId(source: string, filePath: string, sectionIndex: number) {
+  return `${source}:${filePath}:${sectionIndex}`
+}
+
 
 // 判断文件是否是 Markdown 或 MDX 文件
 function isMarkdownFile(fileName: string) {
@@ -52,7 +106,7 @@ function isMarkdownFile(fileName: string) {
 
 // 递归遍历目录，返回符合条件的文档文件列表
 // currentDir 是当前扫描目录，rootDir 是相对路径计算的根目录
-function scanDocs(currentDir: string, rootDir: string): ListType[] {
+function scanDocs(currentDir: string, rootDir: string, filePathRootDir: string = 'data/docs'): ListType[] {
   // 读取当前目录下的所有文件和子目录
   let Dirent = fs.readdirSync(currentDir, { withFileTypes: true })
   let list = []
@@ -68,14 +122,15 @@ function scanDocs(currentDir: string, rootDir: string): ListType[] {
         // 文档绝对路径
         absPath: absPath,
         // 相对 rootDir 的文档路径
-        filePath: path.relative(rootDir, absPath),
+        filePath: path.relative(filePathRootDir, absPath),
+        title: '',
         content: ''
       })
     }
     if (item.isDirectory()) {
       let dir = path.join(currentDir, item.name)
       list.push(
-        ...scanDocs(dir, rootDir)
+        ...scanDocs(dir, rootDir, filePathRootDir)
       )
     }
   }
@@ -88,6 +143,7 @@ function loadDocs(list: ListType[]): ListType[] {
   for (let item of list) {
     console.log('---------', item.absPath)
     let content = fs.readFileSync(item.absPath, 'utf8')
+    item.title = extractPageTitle(content, item.filePath)
     item.content = content
   }
   // console.log('2 读取正文后的文档列表', list)
@@ -129,12 +185,23 @@ function cutDocs(lists: ListType[]): Chunk[] {
   for (let list of lists) {
     // 先按标题切成多个 section
     let sections = splitByHeadings(list.content)
+    let fileChunkIndex = 0
 
     let maxLength = 500
     // let maxLength = 100 // 测试用长度
-    for (let section of sections) {
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+      const section = sections[sectionIndex]
+      if (!section) {
+        continue
+      }
+      const sectionTitle = normalizeSectionTitle(section.title)
+      const parentSectionId = buildSectionId(list.source, list.filePath, sectionIndex)
+
       //这里返回的是去掉代码块的正文,从正文中提取出的代码块数组
       let { textContent, codeBlocks } = splitCodeBlocks(section.content)
+      //codeBlocks是代码块的属性？ 如果要返回，返回codeBlocks然后再进行第二次检索
+
+
       let sectionChunks = cutTextContent(textContent, maxLength)
 
       //这里保存正文切片结果
@@ -145,11 +212,16 @@ function cutDocs(lists: ListType[]): Chunk[] {
           metadata: {
             source: list.source,
             filePath: list.filePath,
-            title: section.title,
+            title: list.title,
+            section: sectionTitle,
+            sourceUrl: buildSourceUrl(list.source, list.filePath, 'data/docs'),
+            chunkIndex: fileChunkIndex,
             type: sectionChunk.type,
-            length: sectionChunk.content.length
+            length: sectionChunk.content.length,
+            parentSectionId
           }
         })
+        fileChunkIndex += 1
       }
 
       //这里保存代码块
@@ -173,18 +245,24 @@ function cutDocs(lists: ListType[]): Chunk[] {
           metadata: {
             source: list.source,
             filePath: list.filePath,
-            title: section.title,
+            title: list.title,
+            section: sectionTitle,
+            sourceUrl: buildSourceUrl(list.source, list.filePath, 'data/docs'),
+            chunkIndex: fileChunkIndex,
             type: 'code',
             lang: codeBlock.lang,
-            length: codeBlock.content.length
+            length: codeBlock.content.length,
+            parentSectionId
           }
         })
+        fileChunkIndex += 1
       }
     }
   }
   return chunks
 }
 
+//章节内的代码存放
 function splitCodeBlocks(content: string): SplitCodeBlocksType {
   //存放代码块
   let codeBlocks: CodeBlocksType[] = []
@@ -196,7 +274,7 @@ function splitCodeBlocks(content: string): SplitCodeBlocksType {
       // console.log(`0------match匹配结果${match},lang匹配结果${lang},code代码${code}}`)
       codeBlocks.push({
         lang: lang.trim(),
-        content: code.trim()
+        content: code.trim(),
       })
 
       //原文中的代码块替换成空行
@@ -204,7 +282,7 @@ function splitCodeBlocks(content: string): SplitCodeBlocksType {
     })
   // console.log('1------splitCodeBlocks处理完毕')
   return {
-    textContent: textContent.trim(),
+    textContent: textContent.trim(), //替换掉代码块的正文
     codeBlocks
   }
 }
@@ -321,16 +399,17 @@ function splitByLength(text: string, maxLength = 500, overlap = 100) {
 }
 
 
-function dealDocs(rootDir: string): Chunk[] {
+function readAndChunkDocs(rootDir: string): IndexedChunk[] {
+  const filePathRootDir = 'data\\docs'
   // 1. 扫描文档文件列表
-  let list1 = scanDocs(rootDir, rootDir)
+  let list1 = scanDocs(rootDir, rootDir, filePathRootDir)
   // 2. 读取文档正文
   let list2 = loadDocs(list1)
   // 3. 基础清洗正文
   let list3 = cleanDocs(list2)
   // 4. 切片
   let res1 = cutDocs(list3)
-  // 给每个 chunk 添加 chunksIndex 和唯一 id
+  // 给每个 chunk 添加文件内索引和唯一 id
   for (let i = 0; i < res1.length; i++) {
     //这里要首先判断当前元素是否存在
     const chunk = res1[i]
@@ -338,16 +417,16 @@ function dealDocs(rootDir: string): Chunk[] {
     if (!chunk) {
       continue
     }
-    chunk.chunksIndex = i
-    chunk.id = `${chunk.metadata.filePath}${chunk.chunksIndex}`
+    chunk.chunksIndex = chunk.metadata.chunkIndex
+    chunk.id = `${chunk.metadata.filePath}#${chunk.chunksIndex}`
   }
   // console.log('------4 最终结果', res1)
 
-  return res1
+  return res1 as IndexedChunk[]
 }
 
 // dealDocs('server\\data\\docs\\react')
 // dealDocs('server\\data\\docs\\vite')
 
 
-export default dealDocs
+export default readAndChunkDocs

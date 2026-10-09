@@ -8,4 +8,7 @@ export const searchSchema = z.object({
 
 })
 
+//输出
+
+
 export type Search = z.infer<typeof searchSchema>;

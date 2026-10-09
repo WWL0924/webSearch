@@ -3,7 +3,8 @@ import path from 'node:path'
 import dotenv from "dotenv"
 import OpenAI from "openai";
 import { fileURLToPath } from 'node:url'
-import type { Chunk, ChunkWithEmbedding } from '../../types/rag.js'
+import type { IndexedChunk, ChunkWithEmbedding } from '../../types/rag.js'
+import { env } from '../../config/env.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -12,15 +13,14 @@ let pathRes = dotenv.config({
 });//固定读取server/.env
 
 
-console.log('2检查key', process.env.DASHSCOPE_API_KEY);
 const client = new OpenAI({
   //embedding模型
   baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  apiKey: process.env.DASHSCOPE_API_KEY,
+  apiKey: env.DASHSCOPE_API_KEY,
 });
 
 
-async function embeddingChunks(chunks: Chunk[]): Promise<ChunkWithEmbedding[]> {
+async function embeddingChunks(chunks: IndexedChunk[]): Promise<ChunkWithEmbedding[]> {
 
   //这里不能超过接口限制
   const batchSize = 10;
@@ -35,8 +35,7 @@ async function embeddingChunks(chunks: Chunk[]): Promise<ChunkWithEmbedding[]> {
       model: "text-embedding-v3",
       input: batch.map(item =>
         //这里把增强的文本用于embedding
-        `标题：${item.metadata.title}\n路径：${item.metadata.filePath}\n
-        正文：${item.content}`)
+        `标题：${item.metadata.title}\n章节：${item.metadata.section}\n路径：${item.metadata.filePath}\n类型：${item.metadata.type}\n语言：${item.metadata.lang ?? ''}\n正文：${item.content}`)
     });
     // console.log('-----调用向量模型', res.model)
     result.push(

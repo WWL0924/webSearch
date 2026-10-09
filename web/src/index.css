@@ -109,3 +109,20 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.code-result {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  margin: 8px 0 0;
+  text-align: left;
+  white-space: pre;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+}
+
+.code-result code {
+  display: block;
+  padding: 0;
+  white-space: pre;
+}

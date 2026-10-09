@@ -5,7 +5,7 @@ import SummaryPanel from '../components/SummaryPanel'
 import './App.css'
 import type { ResultItem, SearchResponse, TypeSelectiOptions } from '../types/search'
 
-import { Select } from 'antd'
+import { Radio, Select } from 'antd'
 
 
 function App() {
@@ -17,16 +17,21 @@ function App() {
         content: '向量数据库检索',
         source: '',
         title: '',
+        section: '',
+        sourceUrl: '',
         filePath: '',
+        chunkIndex: 0,
         type: ''
       }
     ]
   )
+  const [codeResults, setCodeResults] = useState<ResultItem[]>([])
   const [data, setData] = useState('AI生成总结')
   //用户显示选择sources
   const [selectedSources, setSelectedSources] = useState<string[]>([])
   //select列表
   const [selectiOptions, setSelectioptions] = useState<TypeSelectiOptions>([])
+  const [isMap, setIsMap] = useState<'true' | 'false' | 'auto'>('auto')
 
 
 
@@ -61,7 +66,7 @@ function App() {
 
   //1返回list
   async function ragSearch(keyword: string, setState: (text: ResultItem[]) => void)
-    : Promise<ResultItem[]> {
+    : Promise<{ list: ResultItem[], codeResults: ResultItem[] }> {
     //该网页无法正常运作
     const res = await fetch('/api/search', {
       method: 'POST',
@@ -83,7 +88,10 @@ function App() {
 
     if (!res1.noContent) {
       setState(res1.resultList)
-      return await res1.resultList
+      //代码块直接渲染到页面展示区
+      const codeResults = res1.codeResults ?? []
+      setCodeResults(codeResults)
+      return { list: res1.resultList, codeResults }
     } else {
       //这里表示当前知识库没有相关资料
       //?这里在ResultList板块应该怎么显示呢?直接这样传入可以吗
@@ -98,7 +106,8 @@ function App() {
       // }]
       //没有相关资料的情况下
       setState([])
-      return []
+      setCodeResults([])
+      return { list: [], codeResults: [] }
     }
   }
 
@@ -106,6 +115,7 @@ function App() {
   async function aiSummary(
     keyword: string,
     list: ResultItem[],
+    codeResults: ResultItem[],
     setState: (text: string) => void)
     : Promise<string>  //最终返回字符串
   {
@@ -119,7 +129,8 @@ function App() {
       },
       body: JSON.stringify({
         keyword,
-        list
+        list,
+        codeResults,
       }),
     })
 
@@ -181,13 +192,17 @@ function App() {
 
     // 处理空值
     if (!keyword) {
+      setCodeResults([])
       setList([
         {
           ids: '',
           content: '请输入需要检索的问题',
           source: '',
           title: '',
+          section: '',
+          sourceUrl: '',
           filePath: '',
+          chunkIndex: 0,
           type: ''
         }
       ])
@@ -196,13 +211,17 @@ function App() {
     }
 
     //加载状态
+    setCodeResults([])
     setList([
       {
         ids: '',
         content: `正在分析中`,
         source: '',
         title: '',
+        section: '',
+        sourceUrl: '',
         filePath: '',
+        chunkIndex: 0,
         type: ''
       }
     ])
@@ -210,10 +229,10 @@ function App() {
     //捕获异常
     try {
       //1内容embedding
-      const list = await ragSearch(keyword, setList)
-      console.log('后端返回的切片到达前端', list)
+      const { list, codeResults } = await ragSearch(keyword, setList)
+      console.log('后端返回的切片到达前端', list, codeResults)
       //2合成prompt调用ai
-      await aiSummary(keyword, list, setData)
+      await aiSummary(keyword, list, codeResults, setData)
     }
     catch (error) {
       setList([
@@ -222,10 +241,14 @@ function App() {
           content: '检索失败',
           source: '',
           title: '',
+          section: '',
+          sourceUrl: '',
           filePath: '',
+          chunkIndex: 0,
           type: ''
         }
       ])
+      setCodeResults([])
       setData(error instanceof Error ? error.message : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试')
     }
   }
@@ -239,8 +262,13 @@ function App() {
         options={selectiOptions}
         onChange={handleSourceChange}
       />
+      <Radio.Group value={isMap} onChange={e => setIsMap(e.target.value)}>
+        <Radio value="true">生成思维导图</Radio>
+        <Radio value="false">不生成</Radio>
+        <Radio value="auto">自动判断</Radio>
+      </Radio.Group>
       {/* 显示搜索结果前五条 */}
-      <ResultList list={list} />
+      <ResultList list={list} codeResults={codeResults} />
 
       {/* 显示ai总结文本 */}
       <SummaryPanel data={data} />

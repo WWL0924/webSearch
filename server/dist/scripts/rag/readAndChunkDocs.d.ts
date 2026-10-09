@@ -1,4 +1,4 @@
-import type { Chunk } from '../../types/rag.js';
-declare function dealDocs(rootDir: string): Chunk[];
-export default dealDocs;
+import type { IndexedChunk } from '../../types/rag.js';
+declare function readAndChunkDocs(rootDir: string): IndexedChunk[];
+export default readAndChunkDocs;
 //# sourceMappingURL=readAndChunkDocs.d.ts.map
