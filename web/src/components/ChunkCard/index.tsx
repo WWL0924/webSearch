@@ -1,8 +1,8 @@
 import { Card } from "antd"
-import type { ResultItem } from '../../types/search'
+import type { ragResultItemType } from '../../types/search'
 
 interface ChunkCardProps {
-  Chunk: ResultItem,
+  Chunk: ragResultItemType,
   index: number
 }
 
@@ -33,7 +33,7 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
 
         <li>
           类型：
-          {Chunk.type}
+          text
         </li>
 
         <li>

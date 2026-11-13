@@ -3,7 +3,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { DOCS_DIR } from '../../config/paths.js'
-
+import { AgentError } from '../../agent/errors.js'
+import { type readDocSectionInputType, type readDocSectionOutputType, readDocSectionOutputSchema } from '../../schemas/read.schema.js'
 
 
 type MarkdownHeading = {
@@ -89,7 +90,7 @@ function findMarkdownSection(
 
     sectionLines.push(line)
   }
-  
+
   //整个循环结束
   //没找到目标章节 不能返回空字符串
   if (matchedHeadingLevel === null) {
@@ -99,10 +100,13 @@ function findMarkdownSection(
 }
 
 
-function readDocSection(filePath: string, section?: string) {
+function readDocSection(readDocSectionInput: readDocSectionInputType): readDocSectionOutputType {
+  const { filePath, section } = readDocSectionInput
+
   // Agent 传入的 filePath 相对于 server/data/docs，例如 react/react/Component.md。
   // 文档目录由 config/paths.ts 统一给出
   //解析出绝对路径
+
   const targetFilePath = path.resolve(DOCS_DIR, filePath)
 
   // 解析后检查目标路径，防止通过 ../ 读取文档目录之外的文件。
@@ -110,22 +114,29 @@ function readDocSection(filePath: string, section?: string) {
     targetFilePath.startsWith(`${DOCS_DIR}${path.sep}`)
 
   if (!isInsideDocsRoot) {
-    throw new Error('禁止读取文档目录之外的文件')
+    throw new AgentError('INVALID_INPUT', '禁止读取文档目录之外的文件', false)
   }
 
-  const content = fs.readFileSync(targetFilePath, 'utf-8')
-  // 未指定章节时，返回整个文件内容。
-  if (!section) {
-    return content
+  let content: string
+  try {
+    content = fs.readFileSync(targetFilePath, 'utf-8')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      throw new AgentError('DOCUMENT_NOT_FOUND', '指定文档不存在，请使用检索结果中的 filePath', false, error)
+    }
+    throw new AgentError('FILE_OPERATION_FAILED', '文档读取失败', false, error)
   }
 
-  //指定章节,按照标题查找章节
-  const sectionContent = findMarkdownSection(content, section)
+  //指定章节就查找,未指定章节就直接输出这个文件内容
+  const sectionContent = section ? findMarkdownSection(content, section)
+    : content
 
   if (sectionContent === null) {
-    throw new Error(`未找到章节：${section}`)
+    throw new AgentError('DOCUMENT_SECTION_NOT_FOUND', `未找到章节：${section}`, false)
   }
-  return sectionContent
+  const res = { content: sectionContent, filePath, section: section || null }
+  return readDocSectionOutputSchema.parse(res)
 }
 
 export default readDocSection

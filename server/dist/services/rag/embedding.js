@@ -41,12 +41,12 @@ async function embeddingChunks(chunks) {
 }
 //用户提问检索
 // 输入一段或多段文本，输出对应向量
-async function embeddingKeywords(keywords) {
+async function embeddingKeywords(keywords, signal) {
     //调用 OpenAI 的 Embedding API
     const embedding = await client.embeddings.create({
         model: 'text-embedding-v3', //Embedding 模型
         input: keywords //要转换的文本
-    });
+    }, { signal }); //中断等待的向量请求
     // console.log('调用向量模型', res.model)
     // console.log('用户提问检索', embedding.data[0].embedding)
     //这里先判断是否存在

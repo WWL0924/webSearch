@@ -1,13 +1,13 @@
 import { Card } from 'antd'
 import ChunkCard from './ChunkCard'
-import type { ResultItem } from '../../types/search'
+import type { ragResultItemType, ragCodeResultItemType } from '../../types/search'
 
 interface ResultListProps {
-  list: ResultItem[]
-  codeResults: ResultItem[]
+  textResults: ragResultItemType[]
+  codeResults: ragCodeResultItemType[]
 }
 
-function ResultList({ list, codeResults }: ResultListProps) {
+function ResultList({ textResults, codeResults }: ResultListProps) {
   return (
     <>
       <Card
@@ -15,13 +15,13 @@ function ResultList({ list, codeResults }: ResultListProps) {
         style={{ width: '100%', maxWidth: 1200 }}
       >
         {
-          list.length === 0
+          textResults.length === 0
             ? <span>当前知识库没有相关资料</span>
-            : list.map((item, index) => (
+            : textResults.map((item, index) => (
               <ChunkCard
                 Chunk={item}
                 index={index}
-                key={item.ids}
+                key={`${item.sourceUrl}-${index}`}
               />
             ))
         }
@@ -32,7 +32,8 @@ function ResultList({ list, codeResults }: ResultListProps) {
             <ChunkCard
               Chunk={item}
               index={index}
-              key={item.ids}
+              key={`${item.sourceUrl}-${index}`}
+              isCode
             />
           ))}
         </Card>

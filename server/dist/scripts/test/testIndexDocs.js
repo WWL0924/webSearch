@@ -1,7 +1,7 @@
 //这里用于测试是否能存入向量数据库
 //批处理脚本
 import { embeddingChunks, embeddingKeywords } from '../../services/rag/embedding.js';
-import dealDocs from "../rag/readAndChunkDocs.js";
+import dealDocs from "../../services/rag/readAndChunkDocs.js";
 import chromaStore from '../../services/rag/chromaStore.js';
 async function indexDocs() {
     const chunksTest = dealDocs('server\\data\\docs\\test');

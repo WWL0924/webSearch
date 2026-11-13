@@ -1,23 +1,13 @@
 //单条搜索接口
-export interface ResultItem {
-  ids: string,
-  content: string
-  source: string
-  title: string
-  section: string
-  sourceUrl: string
-  filePath: string
-  chunkIndex: number
-  type: string,
-  parentSectionId?: string,
-  lang?: string,
-}
+export type { ragResultItemType, ragCodeResultItemType } from '../../../server/src/schemas/search.schema'
+
+import type { ragResultItemType, ragCodeResultItemType } from '../../../server/src/schemas/search.schema'
 
 //搜索接口返回值
 export interface SearchResponse {
   noContent?: boolean,
-  resultList: ResultItem[],
-  codeResults?: ResultItem[]
+  resultList: ragResultItemType[],
+  codeResults?: ragCodeResultItemType[]
 }
 
 //select配置项类型

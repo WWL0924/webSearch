@@ -28,7 +28,8 @@ type ChromaChunks = ChunkWithEmbedding
 //2检索后返回前端的结果
 type SearchResultItem = {
   ids: string | null | undefined
-  content: string | null | undefined
+  //这里content必须是字符串
+  content: string
   source: string
   title: string
   section: string

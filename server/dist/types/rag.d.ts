@@ -15,7 +15,7 @@ type ChunksWithEmbedding = ChunkWithEmbedding[];
 type ChromaChunks = ChunkWithEmbedding;
 type SearchResultItem = {
     ids: string | null | undefined;
-    content: string | null | undefined;
+    content: string;
     source: string;
     title: string;
     section: string;

@@ -20,7 +20,7 @@ const client = new OpenAI({
 
 
 //根据提取出的内容给ai
-async function AIsummary(keyword: KeywordType, list: chunkListType, codeResults: chunkListType, res: Response) {
+async function AIsummary(keyword: KeywordType, list: chunkListType, codeResults: chunkListType, res: Response, signal: AbortSignal) {
   console.log('######传入的文本和代码', list, ",", codeResults)
   const contentArr = list.map(item => {
     return item.content
@@ -66,11 +66,14 @@ ${codeArr.length > 0 ? `# 相关代码示例\n${codeArr.join('\n\n')}\n` : ''}
     input: prompt,
     //开启流式传输
     stream: true
-  });
+  }, { signal });
   console.log('开启流式传输')
 
   //不断监听ai返回的数据
   for await (const event of response) {
+
+    //响应中断
+    if (signal.aborted || res.destroyed) return
     // console.log('ai事件监听', event.type, event)
     //如果是新增的文本
     if (event.type === "response.output_text.delta") {
@@ -78,6 +81,8 @@ ${codeArr.length > 0 ? `# 相关代码示例\n${codeArr.join('\n\n')}\n` : ''}
       res.write(event.delta);
     }
   }
+  if (signal.aborted || res.destroyed) return
+
   console.log('结束流式传输')
   //最后结束
   res.end();

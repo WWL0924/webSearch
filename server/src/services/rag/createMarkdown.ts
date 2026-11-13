@@ -5,13 +5,13 @@ import path from 'node:path'
 //
 import { Transformer } from 'markmap-lib' //解析md文件为mindmap
 import { fillTemplate } from 'markmap-render'//转换为html
-import type { AI } from '../../schemas/ai.schema.js'
-import { createMarkdownInput, type Report } from '../../schemas/report.shcema.js'
+import { createMarkdownOutputSchema, type createMarkdownInputType, type Report, createMarkdownInputSchema, type createMarkdownOutputType } from '../../schemas/report.shcema.js'
 import { REPORTS_DIR } from '../../config/paths.js'
 
 import reportData from './reportData.js'
 import judjeIsmap from './judjeIsmap.js'
-type chunkListType = AI['list']
+import { AgentError } from '../../agent/errors.js'
+
 
 
 const transformer = new Transformer()
@@ -23,20 +23,31 @@ const MAX_REPORT_BYTES = 2 * 1024 * 1024
 function toFileSlug(keyword: string) {
   const cleaned = keyword
     .replace(/[\\/:*?"<>|\s]+/g, '_')
+    .replace(/[^\p{L}\p{M}\p{N}_.-]+/gu, '_')
     .replace(/^[_.]+|[_.]+$/g, '')
     .slice(0, 50)
   return cleaned || 'report'
 }
 
-async function createMarkdown(isMap = 'auto', keyword: string, list: chunkListType, codeResults: chunkListType = []) {
-  //isMap 可能来自 LLM,先按 schema 收成严格 boolean
-  const { isMap: safeIsMap } = createMarkdownInput.parse({ keyword, isMap })
+async function createMarkdown(createMarkdownInput: createMarkdownInputType, signal?: AbortSignal): Promise<createMarkdownOutputType> {
+  signal?.throwIfAborted()
+  //校验完整输入
+  const validatedInput = createMarkdownInputSchema.parse(createMarkdownInput)
+  const { keyword, isMap, textChunks, codeChunks } = validatedInput
 
+  signal?.throwIfAborted()
+  const shouldCreateMap = await judjeIsmap(keyword, isMap)
+  signal?.throwIfAborted()
 
-  const shouldCreateMap = await judjeIsmap(keyword, safeIsMap)
   console.log('judjeIsmap判断是否生成思维导图', shouldCreateMap)
-  //报告目录由 config/paths.ts 统一给出
-  fs.mkdirSync(REPORTS_DIR, { recursive: true })
+  try {
+    //报告目录由 config/paths.ts 统一给出
+
+    fs.mkdirSync(REPORTS_DIR, { recursive: true })
+  } catch (error) {
+    throw new AgentError('FILE_OPERATION_FAILED', '报告目录创建失败', false, error)
+
+  }
 
   //每次调用用独立文件名,避免同名互相覆盖
   const slug = `${toFileSlug(keyword)}-${Date.now()}`
@@ -44,8 +55,13 @@ async function createMarkdown(isMap = 'auto', keyword: string, list: chunkListTy
   const mapPath = path.join(REPORTS_DIR, `${slug}-map.html`)
 
   //接受内容
-  const obj1: Report = await reportData(keyword, list, codeResults)
+  signal?.throwIfAborted()
+
+  const obj1: Report = await reportData(keyword, textChunks, codeChunks, signal)
+  signal?.throwIfAborted()
+
   const md = `# ${obj1.title}
+
 
 ## 用户任务
 ${obj1.task}
@@ -63,32 +79,47 @@ ${obj1.sourceMarkdown}
   //限制内容大小,避免一次写入过大文件
   const mdBytes = Buffer.byteLength(md, 'utf-8')
   if (mdBytes > MAX_REPORT_BYTES) {
-    throw new Error(`报告内容超过大小上限:${mdBytes} 字节,上限 ${MAX_REPORT_BYTES} 字节`)
+    throw new AgentError('REPORT_TOO_LARGE', `报告内容超过大小上限:${mdBytes} 字节,上限 ${MAX_REPORT_BYTES} 字节`, false)
   }
+  signal?.throwIfAborted()
+  try {
+    fs.writeFileSync(mdPath, md)
+    console.log('生成文件', mdPath)
 
-  fs.writeFileSync(mdPath, md)
-  console.log('生成文件', mdPath)
+  } catch (error) {
+
+    throw new AgentError('FILE_OPERATION_FAILED', 'md文件写入异常', false, error)
+  }
   //根据isMap是否生成思维导图
   if (shouldCreateMap) {
+    signal?.throwIfAborted()
+
     //用内存里的 md,不再重复读盘
-    const { root, features } = transformer.transform(md)
+    const { root, features } = transformer.transform(md) //md转换为思维导图
+    signal?.throwIfAborted()
     //获取需要的cssjs资源
     const assets = transformer.getUsedAssets(features)
     //转换为html
     const html = fillTemplate(root, assets)
+    signal?.throwIfAborted()
+    try {
+      fs.writeFileSync(mapPath, html, 'utf-8')
+      //把链接追加到md,链接与md同目录,用相对文件名
+      fs.appendFileSync(
+        mdPath,
+        `\n## 思维导图\n\n[打开交互式思维导图](${path.basename(mapPath)})\n`,
+      )
+      console.log('附加思维导图', mapPath)
+    } catch (error) {
 
-    fs.writeFileSync(mapPath, html, 'utf-8')
-    //把链接追加到md,链接与md同目录,用相对文件名
-    fs.appendFileSync(
-      mdPath,
-      `\n## 思维导图\n\n[打开交互式思维导图](${path.basename(mapPath)})\n`,
-    )
-    console.log('附加思维导图', mapPath)
+      throw new AgentError('FILE_OPERATION_FAILED', 'md文件追加思维导图异常', false, error)
+    }
+
   }
   //console.log('createmarkdown返回值', { mdFileName: `${slug}.md`, mapFileName: shouldCreateMap ? `${slug} - map.html` : null })
   //返回md文件和思维导图html文件
-  return { mdFileName: `${slug}.md`, mapFileName: shouldCreateMap ? `${slug}-map.html` : null }
-
+  const res = { mdFileName: `${slug}.md`, mapFileName: shouldCreateMap ? `${slug}-map.html` : null }
+  return createMarkdownOutputSchema.parse(res)
 }
 
 export default createMarkdown

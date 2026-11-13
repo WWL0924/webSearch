@@ -1,0 +1,147 @@
+
+{
+  agent: {
+    messages: [
+      AIMessage {
+        lc_serializable: true,
+        lc_kwargs: {
+          id: 'chatcmpl-7bd65106-0db8-92b9-8398-18d063c87010',
+          name: undefined,
+          content: '',
+          additional_kwargs: {
+            function_call: undefined,
+            tool_calls: [
+              {
+                function: {
+                  arguments: '{"keyword": "Vite 开发服务器特点", "sources": \n["vite"]\n\n}',
+                  name: 'ragSearch'
+                },
+                id: 'call_bd5696ef8dd24960870667ba',
+                index: 0,
+                type: 'function'
+              }
+            ],
+            reasoning_content: '用户想了解 Vite 开发服务器的特点。我应该使用 ragSearch 工具搜索相关文档。'
+          },
+          response_metadata: {
+            model_provider: 'openai',
+            model_name: 'qwen3.8-flash',
+            usage: {
+              completion_tokens: 68,
+              completion_tokens_details: { reasoning_tokens: 19, text_tokens: 68 },
+              prompt_tokens: 1241,
+              prompt_tokens_details: { cached_tokens: 0, text_tokens: 1241 },
+              total_tokens: 1309
+            }
+          },
+          type: 'ai',
+          tool_calls: [
+            {
+              name: 'ragSearch',
+              args: { keyword: 'Vite 开发服务器特点', sources: [ 'vite' ] },
+              type: 'tool_call',
+              id: 'call_bd5696ef8dd24960870667ba'
+            }
+          ],
+          invalid_tool_calls: [],
+          usage_metadata: {
+            output_tokens: 68,
+            input_tokens: 1241,
+            total_tokens: 1309,
+            input_token_details: { audio: undefined, cache_read: 0 },
+            output_token_details: { audio: undefined, reasoning: 19 }
+          }
+        },
+        lc_namespace: [ 'langchain_core', 'messages' ],
+        id: 'chatcmpl-7bd65106-0db8-92b9-8398-18d063c87010',
+        name: undefined,
+        content: '',
+        additional_kwargs: {
+          function_call: undefined,
+          tool_calls: [
+            {
+              function: {
+                arguments: '{"keyword": "Vite 开发服务器特点", "sources": \n["vite"]\n\n}',
+                name: 'ragSearch'
+              },
+              id: 'call_bd5696ef8dd24960870667ba',
+              index: 0,
+              type: 'function'
+            }
+          ],
+          reasoning_content: '用户想了解 Vite 开发服务器的特点。我应该使用 ragSearch 工具搜索相关文档。'
+        },
+        response_metadata: {
+          tokenUsage: {
+            promptTokens: 1241,
+            completionTokens: 68,
+            totalTokens: 1309
+          },
+          finish_reason: 'tool_calls',
+          model_provider: 'openai',
+          model_name: 'qwen3.8-flash',
+          usage: {
+            completion_tokens: 68,
+            completion_tokens_details: { reasoning_tokens: 19, text_tokens: 68 },
+            prompt_tokens: 1241,
+            prompt_tokens_details: { cached_tokens: 0, text_tokens: 1241 },
+            total_tokens: 1309
+          }
+        },
+        type: 'ai',
+        tool_calls: [
+          {
+            name: 'ragSearch',
+            args: { keyword: 'Vite 开发服务器特点', sources: [ 'vite' ] },
+            type: 'tool_call',
+            id: 'call_bd5696ef8dd24960870667ba'
+          }
+        ],
+        invalid_tool_calls: [],
+        usage_metadata: {
+          output_tokens: 68,
+          input_tokens: 1241,
+          total_tokens: 1309,
+          input_token_details: { audio: undefined, cache_read: 0 },
+          output_token_details: { audio: undefined, reasoning: 19 }
+        },
+        Symbol(langchain.message): true
+      }
+    ]
+  }
+
+
+  
+}
+{
+  tools: {
+    messages: [
+      ToolMessage {
+        lc_serializable: true,
+        lc_kwargs: {
+          status: 'error',
+          content: 'Error: Failed to connect to chromadb. Make sure your server is running and try again. If you are running from a browser, make sure that your chromadb instance is configured to allow requests from the current origin using the CHROMA_SERVER_CORS_ALLOW_ORIGINS environment variable.\n' +
+            ' Please fix your mistakes.',
+          name: 'ragSearch',
+          tool_call_id: 'call_bd5696ef8dd24960870667ba',
+          additional_kwargs: {},
+          response_metadata: {}
+        },
+        lc_namespace: [ 'langchain_core', 'messages' ],
+        id: undefined,
+        name: 'ragSearch',
+        content: 'Error: Failed to connect to chromadb. Make sure your server is running and try again. If you arerunning from a browser, make sure that your chromadb instance is configured to allow requests from the current origin using the CHROMA_SERVER_CORS_ALLOW_ORIGINS environment variable.\n' +
+          ' Please fix your mistakes.',
+        additional_kwargs: {},
+        response_metadata: {},
+        lc_direct_tool_output: true,
+        type: 'tool',
+        status: 'error',
+        tool_call_id: 'call_bd5696ef8dd24960870667ba',
+        metadata: undefined,
+        artifact: undefined,
+        Symbol(langchain.message): true
+      }
+    ]
+  }
+}

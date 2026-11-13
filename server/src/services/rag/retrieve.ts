@@ -4,6 +4,7 @@ import { getCollection } from './chromaClient.js'
 import extractKeywords from './extractKeywords.js'
 import type { SearchResultItem } from '../../types/rag.js'
 import type { Where } from 'chromadb' //查询过滤条件的类型
+import { AgentError } from '../../agent/errors.js'
 
 
 //这里返回的字段要渲染到页面上
@@ -35,36 +36,50 @@ const RAG_CONFIG = {
 async function retrieve(
   embedding: number[],
   keyword: string,
-  sources: string[] = []): //默认值是空数组
+  sources: string[] = [],
+  signal?: AbortSignal
+
+): //默认值是空数组
   Promise<RetriveType> {
-  const collection = await getCollection() //默认查询文本
-  // console.log('检查collection', collection)
+  let result: Awaited<ReturnType<Awaited<ReturnType<typeof getCollection>>['query']>>
+  signal?.throwIfAborted()
+  try {
+    const collection = await getCollection() //默认查询文本
 
-  console.log('传入retrive的source', sources)
-  const where: Where | undefined
-    = sources.length > 0
-      ? { source: { $in: sources } }
-      : undefined
+    // console.log('检查collection', collection)
 
-  console.log('where', where)
+    // console.log('传入retrive的source', sources)
+    const where: Where | undefined
+      = sources.length > 0
+        ? { source: { $in: sources } }
+        : undefined
 
-  // 2. 去 Chroma 查询
-  const result = await collection.query({
-    queryEmbeddings: [embedding],
-    nResults: RAG_CONFIG.nResults,//返回数量
-    //
-    ...(where ? { where } : {}),
-    //最终展开成
-    // where = {
-    //   source: {
-    //     $in: sources 数据的source中有sources数组中的元素任意一个值就匹配
-    //   }
-    // }
+    console.log('where', where)
 
-    //这里返回distances查询关键词和文档的距离
-    include: ['documents', 'metadatas', 'distances']
-  })
+    // 2. 去 Chroma 查询
+    signal?.throwIfAborted()
+    result = await collection.query({
+      queryEmbeddings: [embedding],
+      nResults: RAG_CONFIG.nResults,//返回数量
+      //
+      ...(where ? { where } : {}),
+      //最终展开成
+      // where = {
+      //   source: {
+      //     $in: sources 数据的source中有sources数组中的元素任意一个值就匹配
+      //   }
+      // }
 
+      //这里返回distances查询关键词和文档的距离
+      include: ['documents', 'metadatas', 'distances']
+    })
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (error instanceof Error && error.name === 'AbortError') throw error
+    throw new AgentError('CHROMA_ERROR', '文本向量数据库查询失败', true)
+  }
+
+  signal?.throwIfAborted()
   console.log('0********返回的chunks结构', result)
 
   let distances: (number | null)[] | undefined = result.distances[0]
@@ -82,9 +97,15 @@ async function retrieve(
       resultList: [],
     }
   }
+
   console.log('*********打印distance查看范围', distances)
-  //res是返回的20条中整理出符合chunks结构的?
-  const res: SearchResultItem[] = chunks.map((chunk, index) => {
+  //res是返回的20条中整理出符合chunks结构的
+  const res: SearchResultItem[] = []
+  for (const [index, chunk] of chunks.entries()) {
+    //不是字符串时跳过结果
+    if (typeof chunk !== 'string') {
+      continue
+    }
     //1校验metadata
     const metadata = metadatas[index]
 
@@ -107,9 +128,9 @@ async function retrieve(
     if (distancesTips === null || distancesTips === undefined) {
       throw new Error(`第 ${index} 条结果没有 distance`)
     }
-    return {
+    res.push({
       ids: ids[index],
-      content: chunks[index],
+      content: chunk,
       source: metadata.source,
       title: metadata.title,
       section: metadata.section,
@@ -121,9 +142,8 @@ async function retrieve(
       ...(typeof metadata.lang === 'string' ? { lang: metadata.lang } : {}),
       distances: distancesTips,
       rankScore: distancesTips
-    }
-
-  })
+    })
+  }
   //0这里提取关键词
   const keywords = extractKeywords(keyword)
   console.log('0*******提取的关键词', keywords)
@@ -227,27 +247,36 @@ async function retrieve(
     }
   }
 
-}
 
+}
 //根据正文检索对应代码块
-async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRetrieveOptions): Promise<SearchResultItem[]> {
+async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRetrieveOptions, signal?: AbortSignal): Promise<SearchResultItem[]> {
   if (parentSectionIds.length === 0) {
     return []
   }
+  signal?.throwIfAborted()
+  let result: Awaited<ReturnType<Awaited<ReturnType<typeof getCollection>>['get']>>
+  try {
+    //获取代码的collection
+    const collection = await getCollection('code-examples')
+    //根据parentSectionIds找和正文相同章节的code
+    const where: Where = {
+      parentSectionId: { $in: parentSectionIds }
+    }
 
-  //获取代码的collection
-  const collection = await getCollection('code-examples')
-  //根据parentSectionIds找和正文相同章节的code
-  const where: Where = {
-    parentSectionId: { $in: parentSectionIds }
+    //这里是精确筛选
+    signal?.throwIfAborted()
+    result = await collection.get({
+      where,//按照明确条件找记录
+      include: ['documents', 'metadatas']
+    })
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (error instanceof Error && error.name === 'AbortError') throw error
+    throw new AgentError('CHROMA_ERROR', '代码向量数据库查询失败', true)
   }
 
-  //这里是精确筛选
-  const result = await collection.get({
-    where,//按照明确条件找记录
-    include: ['documents', 'metadatas']
-  })
-
+  signal?.throwIfAborted()
   const documents = result.documents
   const metadatas = result.metadatas
   return result.ids.flatMap((id, index) => {
@@ -268,7 +297,6 @@ async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRe
     ) {
       return []
     }
-
     //返回符合要求的代码块
     return [{
       ids: id,
@@ -286,6 +314,7 @@ async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRe
       rankScore: 0
     }]
   }).slice(0, RAG_CONFIG.codeResultLimit)
+
 }
 
 

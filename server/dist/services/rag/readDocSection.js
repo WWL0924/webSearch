@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DOCS_DIR } from '../../config/paths.js';
+import { readDocSectionOutputSchema } from '../../schemas/read.schema.js';
 // 去掉文档标题中的锚点等额外标记，便于和用户输入比较。
 function cleanHeadingTitle(headingTitle) {
     return headingTitle
@@ -76,7 +77,8 @@ function findMarkdownSection(content, section) {
     }
     return sectionLines.join('\n').trim();
 }
-function readDocSection(filePath, section) {
+function readDocSection(readDocSectionInput) {
+    const { filePath, section } = readDocSectionInput;
     // Agent 传入的 filePath 相对于 server/data/docs，例如 react/react/Component.md。
     // 文档目录由 config/paths.ts 统一给出
     //解析出绝对路径
@@ -87,16 +89,14 @@ function readDocSection(filePath, section) {
         throw new Error('禁止读取文档目录之外的文件');
     }
     const content = fs.readFileSync(targetFilePath, 'utf-8');
-    // 未指定章节时，返回整个文件内容。
-    if (!section) {
-        return content;
-    }
-    //指定章节,按照标题查找章节
-    const sectionContent = findMarkdownSection(content, section);
+    //指定章节就查找,未指定章节就直接输出这个文件内容
+    const sectionContent = section ? findMarkdownSection(content, section)
+        : content;
     if (sectionContent === null) {
         throw new Error(`未找到章节：${section}`);
     }
-    return sectionContent;
+    const res = { content: sectionContent, filePath, section: section || null };
+    return readDocSectionOutputSchema.parse(res);
 }
 export default readDocSection;
 //# sourceMappingURL=readDocSection.js.map

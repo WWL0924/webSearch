@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import dealDocs from '../rag/readAndChunkDocs.js'
+import dealDocs from '../../services/rag/readAndChunkDocs.js'
 
 const chunks = dealDocs('data\\docs\\react')
 assert.ok(chunks.length > 0, '应该至少生成一个 chunk')

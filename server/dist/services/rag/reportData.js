@@ -1,6 +1,7 @@
 //llm生成结构化数据
 import OpenAI from 'openai';
-import { report } from '../../schemas/report.shcema.js';
+import { Report } from '../../schemas/report.shcema.js';
+import {} from '../../schemas/search.schema.js';
 import { env } from '../../config/env.js';
 //创建客户端
 const client = new OpenAI({
@@ -9,7 +10,7 @@ const client = new OpenAI({
     // key
     apiKey: env.DASHSCOPE_API_KEY,
 });
-async function reportData(keyword, list, codeResults = []) {
+async function reportData(keyword, list, codeResults, signal) {
     const contentArr = list.map(item => {
         return item.content;
     });
@@ -44,7 +45,7 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
         //模型
         model: 'qwen3.8-flash',
         input: prompt,
-    });
+    }, { signal });
     const res1 = JSON.parse(res.output_text);
     //来源,list里不会再混入代码片段,不用过滤type
     res1.sourceMarkdown = list
@@ -56,11 +57,11 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
         const source = item.sourceUrl
             ? `[${item.title}](${item.sourceUrl})`
             : item.title;
-        return `### ${item.title}\n\n- 章节：${item.section}\n- 官方来源：${source}\n\n\`\`\`${item.lang ?? ''}\n${item.content}\n\`\`\``;
+        return `### ${item.title}\n\n- 官方来源：${source}\n\n\`\`\`${item.lang ?? ''}\n${item.content}\n\`\`\``;
     })
         .join('\n\n');
     //zod校验
-    const res2 = report.parse(res1);
+    const res2 = Report.parse(res1);
     console.log('$$$$$$$reportdata生成的结构数据', res2);
     return res2;
 }

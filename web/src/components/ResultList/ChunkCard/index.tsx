@@ -1,12 +1,13 @@
 import { Card } from "antd"
-import type { ResultItem } from '../../../types/search'
+import type { ragResultItemType, ragCodeResultItemType } from '../../../types/search'
 
 interface ChunkCardProps {
-  Chunk: ResultItem,
+  Chunk: ragResultItemType | ragCodeResultItemType,
   index: number
+  isCode?: boolean
 }
 
-function ChunkCard({ Chunk, index }: ChunkCardProps) {
+function ChunkCard({ Chunk, index, isCode = false }: ChunkCardProps) {
 
   return (
 
@@ -16,8 +17,8 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
         marginBottom: 16
       }}
 
-      title={Chunk.type === 'code'
-        ? `代码示例 ${index + 1}${Chunk.lang ? ` · ${Chunk.lang}` : ''}`
+      title={isCode
+        ? `代码示例 ${index + 1}${'lang' in Chunk && Chunk.lang ? ` · ${Chunk.lang}` : ''}`
         : `第${index + 1}条`}
     >
 
@@ -28,10 +29,12 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
           {Chunk.title}
         </li>
 
-        <li>
-          章节：
-          {Chunk.section}
-        </li>
+        {'section' in Chunk && (
+          <li>
+            章节：
+            {Chunk.section}
+          </li>
+        )}
 
         <li>
           来源：
@@ -41,28 +44,13 @@ function ChunkCard({ Chunk, index }: ChunkCardProps) {
         </li>
 
         <li>
-          文件：
-          {Chunk.filePath}
-        </li>
-
-        <li>
-          Chunk 标识：
-          {Chunk.ids}
-        </li>
-
-        <li>
-          Chunk 序号：
-          {Chunk.chunkIndex}
-        </li>
-
-        <li>
           类型：
-          {Chunk.type}
+          {isCode ? 'code' : 'text'}
         </li>
 
         <li>
           文本：
-          {Chunk.type === 'code'
+          {isCode
             ? <pre className="code-result"><code>{Chunk.content}</code></pre>
             : Chunk.content}
         </li>

@@ -1,9 +1,4 @@
-import type { Search } from '../../schemas/search.schema.js';
-type KeywordType = Search['keyword'];
-declare function ragSearch(keyword: KeywordType, sources?: string[]): Promise<{
-    noContent: boolean;
-    resultList: import("../../types/rag.js").SearchResultItem[];
-    codeResults: import("../../types/rag.js").SearchResultItem[];
-}>;
+import type { ragSearchInputType, ragSearchOutputType } from '../../schemas/search.schema.js';
+declare function ragSearch(ragseatchInput: ragSearchInputType, signal?: AbortSignal): Promise<ragSearchOutputType>;
 export default ragSearch;
 //# sourceMappingURL=ragSearch.d.ts.map

@@ -13,7 +13,23 @@ const router = express.Router();
 
 
 router.post('/', async (req: Request, res: Response) => {
+  const controller = new AbortController()
+
+  const onClose = () => {
+    //没调用end，相应没结束就断开
+    if (!res.writableEnded) {
+      controller.abort()
+    }
+  }
+
   try {
+
+
+
+    //请求、响应或连接已经关闭的时候执行onClose
+    res.once('close', onClose)
+
+
     //用 aiSchema规则检查前端传过来的 req.body 是否符合要求。
     const result = aiSchema.safeParse(req.body)
     console.log('*********这里返回的result数据', result)
@@ -45,7 +61,7 @@ router.post('/', async (req: Request, res: Response) => {
     res.flushHeaders()
 
     //这里不要直接返回 是流式返回
-    await AIsummary(keyword, list, codeResults, res);
+    await AIsummary(keyword, list, codeResults, res, controller.signal);
   } catch (error) {
 
     //判断响应阶段
@@ -55,21 +71,25 @@ router.post('/', async (req: Request, res: Response) => {
       console.error('---------------响应还没开始', error)
       res.status(500).json(['后端返回失败', '错误' + error]);
     }
-    //2开始响应但是还没结束
-    else if (res.headersSent && !res.writableEnded) {
+    //2响应没结束
+    else if (!res.writableEnded && !res.destroyed) {
+      console.error('流式响应过程中出错', error)
 
-      return res.status(500).json({
-        message: '后端返回失败'
-      })
-    }
-    //3已经结束
-    else if (res.writableEnded) {
-      //记录日志
-      res.write(`这里出现错误${error}`)
+      //发送错误事件
+      res.write('\n\n后端处理失败，请稍后重试\n') //这里作为普通文本显示
+      //结束响应
       res.end()
     }
+    //3已经结束
+    else if (res.writableEnded || res.destroyed) {
+      //记录日志
+      console.error('响应已结束或连接已断开', error)
+    }
 
-
+  }
+  finally {
+    //移除close
+    res.off('close', onClose)
   }
 });
 

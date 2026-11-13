@@ -1,7 +1,7 @@
 import type { z } from 'zod'
-import type { createMarkdownInput } from '../../schemas/report.shcema.js'
+import type { createMarkdownInputType } from '../../schemas/report.shcema.js'
 
-type IsMapMode = z.infer<typeof createMarkdownInput>['isMap']
+type IsMapMode = createMarkdownInputType['isMap'] //提取ismap的类型
 
 const MAP_KEYWORDS = [
   '思维导图', 'mind map', 'mindmap', '流程', '架构', '原理', '步骤',
@@ -19,7 +19,7 @@ async function judjeIsmap(keyword: string, isMap: IsMapMode = 'auto'): Promise<b
   const normalizedKeyword = keyword.trim().toLocaleLowerCase()
   if (!normalizedKeyword) return false
 
-  
+
   return MAP_KEYWORDS.some(item => normalizedKeyword.includes(item))
 }
 

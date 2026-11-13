@@ -2,6 +2,6 @@ import type { AI } from '../../schemas/ai.schema.js';
 import type { Response } from "express";
 type KeywordType = AI['keyword'];
 type chunkListType = AI['list'];
-declare function AIsummary(keyword: KeywordType, list: chunkListType, codeResults: chunkListType, res: Response): Promise<void>;
+declare function AIsummary(keyword: KeywordType, list: chunkListType, codeResults: chunkListType, res: Response, signal: AbortSignal): Promise<void>;
 export default AIsummary;
 //# sourceMappingURL=AIsummary.d.ts.map

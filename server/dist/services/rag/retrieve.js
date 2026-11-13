@@ -1,5 +1,6 @@
 import { getCollection } from './chromaClient.js';
 import extractKeywords from './extractKeywords.js';
+import { AgentError } from '../../agent/errors.js';
 //只读配置对象
 const RAG_CONFIG = {
     nResults: 30, //chroma查询返回数量 (增加候选数量)
@@ -13,29 +14,43 @@ const RAG_CONFIG = {
     titleBoost: 0.05, //标题加权值
     filePathBoost: 0.03, //文件路径配置
 };
-async function retrieve(embedding, keyword, sources = []) {
-    const collection = await getCollection(); //默认查询文本
-    // console.log('检查collection', collection)
-    console.log('传入retrive的source', sources);
-    const where = sources.length > 0
-        ? { source: { $in: sources } }
-        : undefined;
-    console.log('where', where);
-    // 2. 去 Chroma 查询
-    const result = await collection.query({
-        queryEmbeddings: [embedding],
-        nResults: RAG_CONFIG.nResults, //返回数量
-        //
-        ...(where ? { where } : {}),
-        //最终展开成
-        // where = {
-        //   source: {
-        //     $in: sources 数据的source中有sources数组中的元素任意一个值就匹配
-        //   }
-        // }
-        //这里返回distances查询关键词和文档的距离
-        include: ['documents', 'metadatas', 'distances']
-    });
+async function retrieve(embedding, keyword, sources = [], signal) {
+    let result;
+    try {
+        const collection = await getCollection(); //默认查询文本
+        // console.log('检查collection', collection)
+        // console.log('传入retrive的source', sources)
+        const where = sources.length > 0
+            ? { source: { $in: sources } }
+            : undefined;
+        console.log('where', where);
+        // 2. 去 Chroma 查询
+        signal?.throwIfAborted();
+        result = await collection.query({
+            queryEmbeddings: [embedding],
+            nResults: RAG_CONFIG.nResults, //返回数量
+            //
+            ...(where ? { where } : {}),
+            //最终展开成
+            // where = {
+            //   source: {
+            //     $in: sources 数据的source中有sources数组中的元素任意一个值就匹配
+            //   }
+            // }
+            //这里返回distances查询关键词和文档的距离
+            include: ['documents', 'metadatas', 'distances']
+        });
+    }
+    catch (error) {
+        if (error instanceof AgentError) {
+            throw error;
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new AgentError('CHROMA_ERROR', '文本向量数据库查询失败', true);
+    }
+    signal?.throwIfAborted();
     console.log('0********返回的chunks结构', result);
     let distances = result.distances[0];
     let chunks = result.documents[0];
@@ -49,8 +64,13 @@ async function retrieve(embedding, keyword, sources = []) {
         };
     }
     console.log('*********打印distance查看范围', distances);
-    //res是返回的20条中整理出符合chunks结构的?
-    const res = chunks.map((chunk, index) => {
+    //res是返回的20条中整理出符合chunks结构的
+    const res = [];
+    for (const [index, chunk] of chunks.entries()) {
+        //不是字符串时跳过结果
+        if (typeof chunk !== 'string') {
+            continue;
+        }
         //1校验metadata
         const metadata = metadatas[index];
         if (!metadata ||
@@ -69,9 +89,9 @@ async function retrieve(embedding, keyword, sources = []) {
         if (distancesTips === null || distancesTips === undefined) {
             throw new Error(`第 ${index} 条结果没有 distance`);
         }
-        return {
+        res.push({
             ids: ids[index],
-            content: chunks[index],
+            content: chunk,
             source: metadata.source,
             title: metadata.title,
             section: metadata.section,
@@ -83,8 +103,8 @@ async function retrieve(embedding, keyword, sources = []) {
             ...(typeof metadata.lang === 'string' ? { lang: metadata.lang } : {}),
             distances: distancesTips,
             rankScore: distancesTips
-        };
-    });
+        });
+    }
     //0这里提取关键词
     const keywords = extractKeywords(keyword);
     console.log('0*******提取的关键词', keywords);
@@ -175,21 +195,48 @@ async function retrieve(embedding, keyword, sources = []) {
     }
 }
 //根据正文检索对应代码块
-async function retrieveCodeBySections({ parentSectionIds, sources = [] }) {
+async function retrieveCodeBySections({ parentSectionIds, sources = [] }, signal) {
     if (parentSectionIds.length === 0) {
         return [];
     }
-    //获取代码的collection
-    const collection = await getCollection('code-examples');
+    signal?.throwIfAborted();
+    let collection;
+    try {
+        //获取代码的collection
+        collection = await getCollection('code-examples');
+    }
+    catch (error) {
+        if (error instanceof AgentError) {
+            throw error;
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new AgentError('CHROMA_ERROR', '获取代码向量数据库集合失败', true);
+    }
     //根据parentSectionIds找和正文相同章节的code
     const where = {
         parentSectionId: { $in: parentSectionIds }
     };
     //这里是精确筛选
-    const result = await collection.get({
-        where, //按照明确条件找记录
-        include: ['documents', 'metadatas']
-    });
+    signal?.throwIfAborted();
+    let result;
+    try {
+        result = await collection.get({
+            where, //按照明确条件找记录
+            include: ['documents', 'metadatas']
+        });
+    }
+    catch (error) {
+        if (error instanceof AgentError) {
+            throw error;
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new AgentError('CHROMA_ERROR', '代码向量数据库查询失败', true);
+    }
+    signal?.throwIfAborted();
     const documents = result.documents;
     const metadatas = result.metadatas;
     return result.ids.flatMap((id, index) => {

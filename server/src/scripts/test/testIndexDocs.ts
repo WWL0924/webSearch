@@ -5,7 +5,7 @@ import {
   embeddingChunks,
   embeddingKeywords
 } from '../../services/rag/embedding.js'
-import dealDocs from "../rag/readAndChunkDocs.js"
+import dealDocs from "../../services/rag/readAndChunkDocs.js"
 import chromaStore from '../../services/rag/chromaStore.js'
 
 

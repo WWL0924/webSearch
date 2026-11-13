@@ -1,6 +1,6 @@
 // 文档处理和向量入库脚本
 import { embeddingChunks } from '../../services/rag/embedding.js';
-import readAndChunkDocs from "./readAndChunkDocs.js";
+import readAndChunkDocs from '../../services/rag/readAndChunkDocs.js';
 import chromaStore from '../../services/rag/chromaStore.js';
 import { getCollection } from '../../services/rag/chromaClient.js';
 async function clearExistingChunks() {

@@ -1,10 +1,10 @@
 //llm生成结构化数据
 import OpenAI from 'openai';
-import { type Report, report } from '../../schemas/report.shcema.js'
-import type { AI } from '../../schemas/ai.schema.js'
+import { Report } from '../../schemas/report.shcema.js'
+import { type ragResultItemType, type ragCodeResultItemType } from '../../schemas/search.schema.js'
 import { env } from '../../config/env.js'
+import { AgentError } from '../../agent/errors.js'
 
-type chunkListType = AI['list']
 
 
 //创建客户端
@@ -15,7 +15,7 @@ const client = new OpenAI({
   apiKey: env.DASHSCOPE_API_KEY,
 });
 
-async function reportData(keyword: string, list: chunkListType, codeResults: chunkListType = []): Promise<Report> {
+async function reportData(keyword: string, list: ragResultItemType[], codeResults: ragCodeResultItemType[], signal?: AbortSignal): Promise<Report> {
 
   const contentArr = list.map(item => {
     return item.content
@@ -53,8 +53,17 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
     //模型
     model: 'qwen3.8-flash',
     input: prompt,
-  })
-  const res1 = JSON.parse(res.output_text)
+  }, { signal })
+  let res1: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(res.output_text)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error('报告内容必须是 JSON 对象')
+    }
+    res1 = parsed as Record<string, unknown>
+  } catch (error) {
+    throw new AgentError('LLM_INVALID_RESPONSE', '模型返回的报告不是有效的 JSON 对象，请重新生成', true, error)
+  }
 
   //来源,list里不会再混入代码片段,不用过滤type
   res1.sourceMarkdown = list
@@ -67,12 +76,16 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
       const source = item.sourceUrl
         ? `[${item.title}](${item.sourceUrl})`
         : item.title
-      return `### ${item.title}\n\n- 章节：${item.section}\n- 官方来源：${source}\n\n\`\`\`${item.lang ?? ''}\n${item.content}\n\`\`\``
+      return `### ${item.title}\n\n- 官方来源：${source}\n\n\`\`\`${item.lang ?? ''}\n${item.content}\n\`\`\``
     })
     .join('\n\n')
 
   //zod校验
-  const res2 = report.parse(res1)
+  const result = Report.safeParse(res1)
+  if (!result.success) {
+    throw new AgentError('LLM_INVALID_RESPONSE', '模型返回的报告字段不符合要求，请重新生成', true, result.error)
+  }
+  const res2 = result.data
   console.log('$$$$$$$reportdata生成的结构数据', res2)
   return res2
 
