@@ -1,17 +1,4 @@
 export declare const langgraphTools: (import("@langchain/core/tools").DynamicStructuredTool<import("zod").ZodObject<{
-    filePath: import("zod").ZodString;
-    section: import("zod").ZodOptional<import("zod").ZodString>;
-}, import("zod/v4/core").$strip>, {
-    filePath: string;
-    section?: string | undefined;
-}, {
-    filePath: string;
-    section?: string | undefined;
-}, {
-    content: string;
-    filePath: string;
-    section: string | null;
-}, unknown, "readDocSection"> | import("@langchain/core/tools").DynamicStructuredTool<import("zod").ZodObject<{
     keyword: import("zod").ZodString;
     sources: import("zod").ZodDefault<import("zod").ZodArray<import("zod").ZodEnum<{
         [x: string]: string;
@@ -22,7 +9,7 @@ export declare const langgraphTools: (import("@langchain/core/tools").DynamicStr
 }, {
     keyword: string;
     sources?: string[] | undefined;
-}, {
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
     success: boolean;
     data: {
         textChunks: {
@@ -44,6 +31,19 @@ export declare const langgraphTools: (import("@langchain/core/tools").DynamicStr
         textChunkCount: number;
     };
 }, unknown, "ragSearch"> | import("@langchain/core/tools").DynamicStructuredTool<import("zod").ZodObject<{
+    filePath: import("zod").ZodString;
+    section: import("zod").ZodOptional<import("zod").ZodString>;
+}, import("zod/v4/core").$strip>, {
+    filePath: string;
+    section?: string | undefined;
+}, {
+    filePath: string;
+    section?: string | undefined;
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
+    content: string;
+    filePath: string;
+    section: string | null;
+}, unknown, "readDocSection"> | import("@langchain/core/tools").DynamicStructuredTool<import("zod").ZodObject<{
     keyword: import("zod").ZodString;
     isMap: import("zod").ZodDefault<import("zod").ZodEnum<{
         auto: "auto";
@@ -104,7 +104,7 @@ export declare const langgraphTools: (import("@langchain/core/tools").DynamicStr
         source: string;
         lang?: string | undefined;
     }[];
-}, {
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
     mdFileName: string;
     mapFileName: string | null;
 }, unknown, "createMarkdown">)[];

@@ -9,7 +9,7 @@ export declare const ragTool: import("@langchain/core/tools").DynamicStructuredT
 }, {
     keyword: string;
     sources?: string[] | undefined;
-}, {
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
     success: boolean;
     data: {
         textChunks: {

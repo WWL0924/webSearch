@@ -1,12 +1,12 @@
-//定义统一错误类型
 export class AgentError extends Error {
     code;
     retryable;
     constructor(code, //错误码
     message, //错误描述
-    retryable //重试是否可能成功
+    retryable, //重试是否可能成功
+    cause //描述操作失败
     ) {
-        super(message);
+        super(message, { cause });
         this.code = code;
         this.retryable = retryable;
         this.name = "AgentError";

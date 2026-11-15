@@ -1,10 +1,20 @@
 import { tool } from '@langchain/core/tools';
 import ragSearch from '../../services/rag/ragSearch';
 import { ragSearchInputSchema } from '../../schemas/search.schema';
+import { createToolErrorMessage } from '../toolErrors';
 // ragSearch 和 ragSearchInputSchema 使用现有导入
 export const ragTool = tool(
-//runtime工具执行信息包中读取运行中保存的用户来源
-(input, runtime) => ragSearch({ ...input, sources: runtime.state.sources }, runtime.signal), {
+//runtime工具执行信息包中读取运行中保存的用户来源(工具运行时上下文)
+async (input, runtime) => {
+    try {
+        return await ragSearch({ ...input, sources: runtime.state.sources }, runtime.signal);
+    }
+    catch (error) {
+        console.error('ragSearch 工具执行失败', error);
+        runtime.signal?.throwIfAborted();
+        return createToolErrorMessage(error, 'ragSearch', runtime.toolCallId);
+    }
+}, {
     name: 'ragSearch',
     description: 
     // 用途：先讲能干什么，模型靠这句判断是否可用

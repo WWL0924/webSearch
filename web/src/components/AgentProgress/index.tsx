@@ -6,11 +6,14 @@ type AgentProcessProps = {
   events: eventsType[],
   content: string,
   toolCall?: string[],
+  onRetry: () => void,
+  loading: boolean,
 }
 
 
 
-function AgentProgress({ current, events, content, toolCall = [] }: AgentProcessProps) {
+function AgentProgress(
+  { current, events, content, toolCall = [], onRetry, loading, }: AgentProcessProps) {
   const lastEvent = events.at(-1)
   const hasError = lastEvent?.type === 'error'
   const isDone = lastEvent?.type === 'done'
@@ -36,6 +39,30 @@ function AgentProgress({ current, events, content, toolCall = [] }: AgentProcess
           {/* 取出type对应的中文名称显示 */}
           {eventLabels[event.type]}
         </Tag>
+        {event.type === 'error' && event.code && (
+          <Tag color="default">{event.code}</Tag>
+        )}
+
+        {/* 最后一个事件显示重试按钮 */}
+        {event.type === 'error' && typeof event.retryable === 'boolean' && (
+          event.retryable ?
+            event === lastEvent && (
+              <Button
+                //根据loading显示按钮状态
+                onClick={() => {
+                  if (loading) return
+                  onRetry()
+                }}
+                loading={loading}
+              >
+                重试上次请求
+              </Button>
+            )
+
+            : <Tag>不可重试</Tag>
+
+        )
+        }
         {/* toolCall不为空时渲染 */}
         {event.toolCall.length > 0 && <span>{event.toolCall.join('、')}</span>}
         <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
@@ -44,19 +71,21 @@ function AgentProgress({ current, events, content, toolCall = [] }: AgentProcess
 
 
         {/* 检查文件存在再渲染按钮 */}
-        {event.type === 'tool_result' && event.toolCall.includes('createMarkdown') && event.report && (
-          <Space wrap style={{ marginTop: 8 }}>
-            <Button href={event.report.mdUrl} download>
-              下载 Markdown
-            </Button>
-            {event.report.mapUrl && (
-              <Button href={event.report.mapUrl} target="_blank" rel="noopener noreferrer">
-                查看思维导图
+        {
+          event.type === 'tool_result' && event.toolCall.includes('createMarkdown') && event.report && (
+            <Space wrap style={{ marginTop: 8 }}>
+              <Button href={event.report.mdUrl} download>
+                下载 Markdown
               </Button>
-            )}
-          </Space>
-        )}
-      </div>
+              {event.report.mapUrl && (
+                <Button href={event.report.mapUrl} target="_blank" rel="noopener noreferrer">
+                  查看思维导图
+                </Button>
+              )}
+            </Space>
+          )
+        }
+      </div >
     ))
   }
 

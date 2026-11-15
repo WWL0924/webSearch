@@ -27,10 +27,10 @@ export declare const compiledGraph: import("@langchain/langgraph").CompiledState
 export declare function runAgent(question: string, sources: string[], signal: AbortSignal, options?: {
     ismd: boolean;
     isMap: 'true' | 'false' | 'auto';
-}): Promise<import("@langchain/core/utils/stream").IterableReadableStream<{
+}): AsyncGenerator<{
     agent?: {
         messages: import("@langchain/core/messages").AIMessageChunk<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>>[];
     };
     tools?: any;
-}>>;
+}, void, unknown>;
 //# sourceMappingURL=graph.d.ts.map

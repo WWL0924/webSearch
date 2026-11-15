@@ -5,12 +5,9 @@ import AIRouter from "./routes/ai.js";
 import sourceRouter from './routes/sources.js';
 import reportsRouter from './routes/reports.js';
 import agentRouter from './routes/agent.js';
-//注册工具
-import { registerTool } from './agent/toolRegistry.js';
-import { tools } from './agent/tools/index.js';
-for (const tool of tools) {
-    registerTool(tool); //存入map
-}
+// //注册工具
+// import { registerTool } from './agent/toolRegistry.js'
+// import { langgraphTools } from './agent/tools/index.langgraph.js'
 //启动服务 入口文件 总路由
 const app = express();
 //注册中间件 

@@ -24,6 +24,7 @@ const baseModel = new ChatOpenAI({
   // apiKey: '123',
   configuration: {
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    // baseURL: "https://dashscope.aliyuncs.com",//测试错误
   },
 });
 const model = baseModel.bindTools(langgraphTools); //让模型知道哪些工具可以调用

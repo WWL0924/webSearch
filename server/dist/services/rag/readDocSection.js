@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DOCS_DIR } from '../../config/paths.js';
+import { AgentError } from '../../agent/errors.js';
 import { readDocSectionOutputSchema } from '../../schemas/read.schema.js';
 // 去掉文档标题中的锚点等额外标记，便于和用户输入比较。
 function cleanHeadingTitle(headingTitle) {
@@ -86,14 +87,24 @@ function readDocSection(readDocSectionInput) {
     // 解析后检查目标路径，防止通过 ../ 读取文档目录之外的文件。
     const isInsideDocsRoot = targetFilePath.startsWith(`${DOCS_DIR}${path.sep}`);
     if (!isInsideDocsRoot) {
-        throw new Error('禁止读取文档目录之外的文件');
+        throw new AgentError('INVALID_INPUT', '禁止读取文档目录之外的文件', false);
     }
-    const content = fs.readFileSync(targetFilePath, 'utf-8');
+    let content;
+    try {
+        content = fs.readFileSync(targetFilePath, 'utf-8');
+    }
+    catch (error) {
+        const code = error.code;
+        if (code === 'ENOENT' || code === 'ENOTDIR') {
+            throw new AgentError('DOCUMENT_NOT_FOUND', '指定文档不存在，请使用检索结果中的 filePath', false, error);
+        }
+        throw new AgentError('FILE_OPERATION_FAILED', '文档读取失败', false, error);
+    }
     //指定章节就查找,未指定章节就直接输出这个文件内容
     const sectionContent = section ? findMarkdownSection(content, section)
         : content;
     if (sectionContent === null) {
-        throw new Error(`未找到章节：${section}`);
+        throw new AgentError('DOCUMENT_SECTION_NOT_FOUND', `未找到章节：${section}`, false);
     }
     const res = { content: sectionContent, filePath, section: section || null };
     return readDocSectionOutputSchema.parse(res);

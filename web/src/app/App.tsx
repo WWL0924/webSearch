@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ResultList from '../components/ResultList'
 import SearchForm from '../components/SearchForm'
 import SummaryPanel from '../components/SummaryPanel'
@@ -10,8 +10,13 @@ import type { eventsType } from '../types/agent'
 
 import { Checkbox, Radio, Select } from 'antd'
 import AgentProgress from '../components/AgentProgress'
+import { ClientError } from '../errors/ClientError'
 
 type RagSearchDataType = ragSearchOutputType['data']
+
+
+
+
 
 //请求或读取流失败时添加网络错误标记,保留原始异常
 function rethrowNetworkError(error: unknown): never {
@@ -53,7 +58,13 @@ function createMessageResult(content: string): ragResultItemType {
   }
 }
 
-
+//agentloop请求体
+type SearchReq = {
+  keyword: string
+  sources: string[]
+  ismd: boolean
+  isMap: 'true' | 'false' | 'auto'
+}
 
 
 function App() {
@@ -75,15 +86,14 @@ function App() {
   //当前agent流程属于的阶段
   const [current, setCurrent] = useState<0 | 1 | 2 | 3 | 4>(0)
   const [content, setContent] = useState<string>('')
-  //保存历史记录
+
+  //保存agent进度历史记录
   const [events, setEvents] = useState<eventsType[]>([])
 
   const [tooCall, setToolCall] = useState<string[]>([])
-  //下载链接
-  //下载链接随对应的事件保存在 event.report 中
 
-  // const [toolCallResult, setToolCallResult] = useState<string>('')
-
+  //保存最后一次提交的信息
+  const lastSearchRef = useRef<SearchReq | null>(null)
 
   //1页面初次加载获取select配置项
   useEffect(() => {
@@ -120,10 +130,11 @@ function App() {
   }
 
   //接收流式响应
-  async function agentLoop(keyword: string) {
+  async function agentLoop(req: SearchReq) {
     //超时
-    const timeOut = ismd ? 180_000 : 120_000
+    const timeOut = req.ismd ? 180_000 : 120_000
     const signal = AbortSignal.timeout(timeOut);
+
 
     //该网页无法正常运作
     const res = await fetch('/api/agent', {
@@ -132,12 +143,13 @@ function App() {
         'Content-Type': 'application/json',
       },
       //这里发送的json本身就是对象
-      body: JSON.stringify({
-        keyword,
-        ismd,
-        isMap,
-        sources: selectedSources//前端选择的source返回后端
-      }),
+      // body: JSON.stringify({
+      //   keyword,
+      //   ismd,
+      //   isMap,
+      //   sources: selectedSources//前端选择的source返回后端
+      // }),
+      body: JSON.stringify(req),
       signal//超时信号
     }).catch(error => rethrowNetworkError(
       signal.aborted ? signal.reason : error //如果出现超时,传递超时原因
@@ -146,9 +158,32 @@ function App() {
 
     //收到响应,状态码不在200-299
     if (!res.ok) {
-      //读取后端错误信息
-      const errorData = await res.json()
-      throw new Error(errorData.message) //停止agentloop
+      //响应解析为json
+      const errorData: unknown = await res.json().catch(() => null)//解析失败null
+
+      //读取有效的code和message
+      if (
+        typeof errorData !== 'object' || errorData === null ||
+        !('code' in errorData) || typeof errorData.code !== 'string' ||
+        !('message' in errorData) || typeof errorData.message !== 'string'
+      ) {
+        //可能是服务器
+        const retryable = [500, 502, 503, 504].includes(res.status)
+        const message = retryable
+          ? '服务暂时不可用，请稍后重试'
+          : '服务器返回的错误信息格式无效'
+        throw new ClientError('UNKNOWN_ERROR', message, retryable)
+      }
+      throw new ClientError(
+        //已定义错误码
+        errorData.code as import('../../../shared/types/agent').AgentErrorCode,
+
+        errorData.message,
+
+        'retryable' in errorData && typeof errorData.retryable === 'boolean'
+          ? errorData.retryable
+          : false
+      ) //停止agentloop
     }
     console.warn('向agent发送请求')
     //读取流式输出
@@ -203,8 +238,25 @@ function App() {
         const frontArr = front.split('\n\n')
 
         //去掉前缀的data
+        //可能抛出SyntaxError
         const messageText = frontArr[0].replace(/^data:\s*/, '')
-        const frontdata: AgentStreamEvent = JSON.parse(messageText)
+
+
+        let frontdata: AgentStreamEvent
+        try {
+          frontdata = JSON.parse(messageText) //sse数据解析
+        }
+        catch (error) {
+          if (error instanceof SyntaxError) {
+            throw new ClientError(
+              'RESPONSE_PARSE_ERROR',
+              '服务器返回的事件数据格式无效，请联系开发者检查',
+              false,
+              error
+            )
+          }
+          throw error
+        }
         lastEventType = frontdata.type
         console.log('agent传给前端的frontdata', frontdata)
 
@@ -398,17 +450,25 @@ function App() {
           ])
           //这里要展示在另一个组件里
           console.warn('done')
-
         }
+
+        //
         else if (frontdata.type === 'error') {
           const errorContent = typeof frontdata.content === 'string' ? frontdata.content : 'Agent 执行失败'
           setContent(errorContent)
 
-
+          //更新,让页面显示错误
           setEvents(prev => [
             ...prev,
             //沿用上一段历史记录
-            { step: prev.at(-1)?.step ?? 0, type: 'error', toolCall: frontToolcall ?? [], content: errorContent }
+            {
+              step: prev.at(-1)?.step ?? 0,
+              type: 'error',
+              toolCall: frontToolcall ?? [],
+              content: errorContent,
+              code: frontdata.code,
+              retryable: frontdata.retryable,
+            }
           ])
           //这里要展示在另一个组件里
           console.warn('error')
@@ -438,13 +498,33 @@ function App() {
   //   setList(result.list)
   // }
 
+  //请求进行中的状态
+  const loadingRef = useRef<boolean>(false)
+  const [loading, setLoading] = useState(false)
+
   // 点击按钮之后
-  async function handleSearch(value: string) {
+  async function handleSearch(value: string, req?: SearchReq) {
+    //请求互斥
+    if (loadingRef.current) return
+
+
     const keyword = value.trim()
     setWord(value)
 
+
+    const request = req ?? {
+      keyword,
+      sources: [...selectedSources],
+      ismd,
+      isMap,
+    }
+
+    if (!req) {
+      lastSearchRef.current = request
+    }
+
     // 处理空值
-    if (!keyword) {
+    if (!request.keyword) {
       setCodeResults([])
       setTextResults([createMessageResult('请输入需要检索的问题')])
       setData('输入关键词后 ai分析给出总结')
@@ -458,17 +538,20 @@ function App() {
     setToolCall([])
     setCodeResults([])
     setTextResults([createMessageResult('正在分析中')])
-    setData(`正在分析中,关键词${keyword}`)
+    setData(`正在分析中,关键词${request.keyword}`)
     //捕获异常
     try {
       console.warn('即将进入agentloop')
       //执行agentloop
-      await agentLoop(keyword)
+      loadingRef.current = true//此时不能重复触发
+      setLoading(true)
+
+      await agentLoop(request)
       // await ragSearch('vite是什么', setCodeResults, setTextResults)
       console.warn('agentloop执行完毕')
 
-
     }
+    //接住agentloop内部抛出但是没处理的异常
     catch (error) {
       //主动取消时不显示网络失败提示
       if (error instanceof Error && error.name === 'AbortError') {
@@ -476,31 +559,52 @@ function App() {
       }
 
       //这里只识别请求和读取流时添加的标记
-      const isNetworkError = error instanceof Error && 'code' in error && error.code === 'NETWORK_ERROR'
+      const clientError = error instanceof ClientError ? error : undefined
+      const errorCode = clientError?.code
+        ?? (error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : undefined)
+      const isNetworkError = errorCode === 'NETWORK_ERROR'
+      const isTimeoutError = errorCode === 'REQUEST_TIMEOUT'
       //根据error.code返回前端提示
-      const errorMessage = isNetworkError
-        ? '网络连接失败或中断，请检查网络或后端服务后重试'
-        : error instanceof Error ? error.message : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试'
+      const errorMessage = clientError
+        ? clientError.message
+        : isNetworkError
+          ? '网络连接失败或中断，请检查网络或后端服务后重试'
+          : isTimeoutError
+            ? '搜索处理超时，请稍后重试'
+            : error instanceof Error
+              ? error.message
+              : '后端未成功返回搜索结果或 AI 总结，请检查接口状态、返回数据格式，或稍后重试'
+      const retryable = clientError?.retryable
+        ?? (isNetworkError || isTimeoutError ? true : undefined)
       console.error('搜索失败', error)
       setContent(errorMessage)
+
+      //更新让页面显示错误
       setEvents(prev => [
         ...prev,
         {
           step: prev.at(-1)?.step ?? 0,
           type: 'error',
           toolCall: [],
-          content: errorMessage
+          content: errorMessage,
+          code: errorCode as eventsType['code'],
+          retryable
         }
       ])
       setTextResults([createMessageResult('检索失败')])
       setCodeResults([])
       setData(errorMessage)
     }
+
+    finally {
+      loadingRef.current = false
+      setLoading(false)
+    }
   }
 
   return (
     <>
-      <SearchForm word={word} onSearch={handleSearch} />
+      <SearchForm word={word} onSearch={handleSearch} loading={loading} />
       {/* 选择来源组件 */}
       <Select
         mode="multiple"
@@ -521,6 +625,14 @@ function App() {
         events={events}
         content={content}
         toolCall={tooCall}
+        loading={loading}
+        onRetry={() => {
+          const req = lastSearchRef.current
+          if (req) {
+            handleSearch(req.keyword, req)
+          }
+        }}
+
       ></AgentProgress>
       {/* 显示搜索结果前五条 */}
       <ResultList textResults={textResults} codeResults={codeResults} />

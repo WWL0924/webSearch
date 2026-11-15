@@ -2,15 +2,18 @@ import { Input } from 'antd'
 
 type SearchFormProps = {
   word?: string
-  onSearch: (value: string) => void | Promise<void>
+  onSearch: (value: string) => void | Promise<void>,
+  loading: boolean
 }
 
-function SearchForm({ word, onSearch }: SearchFormProps) {
+function SearchForm({ word, onSearch, loading }: SearchFormProps) {
   const { Search } = Input
 
   //收集输入 触发提交
   function handleSearch(value: string) {
+    if (loading) return
     onSearch(value)
+
   }
 
   return (
@@ -19,6 +22,7 @@ function SearchForm({ word, onSearch }: SearchFormProps) {
       enterButton="搜索"
       defaultValue={word}
       onSearch={handleSearch}
+      loading={loading} //加载图标
       style={{ width: 300 }}
     />
   )

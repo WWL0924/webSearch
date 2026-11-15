@@ -1,9 +1,10 @@
-export type AgentErrorCode = 'INVALID_INPUT' | 'LLM_REQUEST_FAILED' | 'LLM_RATE_LIMIT' | 'LLM_TIMEOUT' | 'TOOL_NOT_FOUND' | 'TOOL_EXECUTION_FAILED' | 'RETRIEVAL_FAILED' | 'CHROMA_ERROR' | 'NETWORK_ERROR' | 'REQUEST_TIMEOUT' | 'MAX_STEPS_EXCEEDED' | 'AGENT_EXECUTION_FAILED' | 'FILE_OPERATION_FAILED' | 'UNKNOWN_ERROR' | 'TASK_CANCELLED';
+import type { AgentErrorCode, messageType, retryableType } from '../../../shared/types/agent';
 export declare class AgentError extends Error {
     code: AgentErrorCode;
-    retryable: boolean;
+    retryable: retryableType;
     constructor(code: AgentErrorCode, //错误码
-    message: string, //错误描述
-    retryable: boolean);
+    message: messageType, //错误描述
+    retryable: retryableType, //重试是否可能成功
+    cause?: unknown);
 }
 //# sourceMappingURL=errors.d.ts.map

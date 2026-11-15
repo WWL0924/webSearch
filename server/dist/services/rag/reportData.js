@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { Report } from '../../schemas/report.shcema.js';
 import {} from '../../schemas/search.schema.js';
 import { env } from '../../config/env.js';
+import { AgentError } from '../../agent/errors.js';
 //创建客户端
 const client = new OpenAI({
     // 必须指定阿里云的兼容接口地址
@@ -46,7 +47,17 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
         model: 'qwen3.8-flash',
         input: prompt,
     }, { signal });
-    const res1 = JSON.parse(res.output_text);
+    let res1;
+    try {
+        const parsed = JSON.parse(res.output_text);
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            throw new Error('报告内容必须是 JSON 对象');
+        }
+        res1 = parsed;
+    }
+    catch (error) {
+        throw new AgentError('LLM_INVALID_RESPONSE', '模型返回的报告不是有效的 JSON 对象，请重新生成', true, error);
+    }
     //来源,list里不会再混入代码片段,不用过滤type
     res1.sourceMarkdown = list
         .map(item => `- 文档：${item.title}\n  - 章节：${item.section}\n  - 原文：${item.content}\n  - 官方来源：${item.sourceUrl}`)
@@ -61,7 +72,11 @@ ${contentArr.join('\n\n--- 上下文片段分隔线 ---\n\n')}
     })
         .join('\n\n');
     //zod校验
-    const res2 = Report.parse(res1);
+    const result = Report.safeParse(res1);
+    if (!result.success) {
+        throw new AgentError('LLM_INVALID_RESPONSE', '模型返回的报告字段不符合要求，请重新生成', true, result.error);
+    }
+    const res2 = result.data;
     console.log('$$$$$$$reportdata生成的结构数据', res2);
     return res2;
 }

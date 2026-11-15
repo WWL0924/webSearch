@@ -8,6 +8,7 @@ import { createMarkdownOutputSchema, createMarkdownInputSchema } from '../../sch
 import { REPORTS_DIR } from '../../config/paths.js';
 import reportData from './reportData.js';
 import judjeIsmap from './judjeIsmap.js';
+import { AgentError } from '../../agent/errors.js';
 const transformer = new Transformer();
 //报告内容上限,超过就不落盘
 const MAX_REPORT_BYTES = 2 * 1024 * 1024;
@@ -29,8 +30,13 @@ async function createMarkdown(createMarkdownInput, signal) {
     const shouldCreateMap = await judjeIsmap(keyword, isMap);
     signal?.throwIfAborted();
     console.log('judjeIsmap判断是否生成思维导图', shouldCreateMap);
-    //报告目录由 config/paths.ts 统一给出
-    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+    try {
+        //报告目录由 config/paths.ts 统一给出
+        fs.mkdirSync(REPORTS_DIR, { recursive: true });
+    }
+    catch (error) {
+        throw new AgentError('FILE_OPERATION_FAILED', '报告目录创建失败', false, error);
+    }
     //每次调用用独立文件名,避免同名互相覆盖
     const slug = `${toFileSlug(keyword)}-${Date.now()}`;
     const mdPath = path.join(REPORTS_DIR, `${slug}.md`);
@@ -57,11 +63,16 @@ ${obj1.sourceMarkdown}
     //限制内容大小,避免一次写入过大文件
     const mdBytes = Buffer.byteLength(md, 'utf-8');
     if (mdBytes > MAX_REPORT_BYTES) {
-        throw new Error(`报告内容超过大小上限:${mdBytes} 字节,上限 ${MAX_REPORT_BYTES} 字节`);
+        throw new AgentError('REPORT_TOO_LARGE', `报告内容超过大小上限:${mdBytes} 字节,上限 ${MAX_REPORT_BYTES} 字节`, false);
     }
     signal?.throwIfAborted();
-    fs.writeFileSync(mdPath, md);
-    console.log('生成文件', mdPath);
+    try {
+        fs.writeFileSync(mdPath, md);
+        console.log('生成文件', mdPath);
+    }
+    catch (error) {
+        throw new AgentError('FILE_OPERATION_FAILED', 'md文件写入异常', false, error);
+    }
     //根据isMap是否生成思维导图
     if (shouldCreateMap) {
         signal?.throwIfAborted();
@@ -73,10 +84,15 @@ ${obj1.sourceMarkdown}
         //转换为html
         const html = fillTemplate(root, assets);
         signal?.throwIfAborted();
-        fs.writeFileSync(mapPath, html, 'utf-8');
-        //把链接追加到md,链接与md同目录,用相对文件名
-        fs.appendFileSync(mdPath, `\n## 思维导图\n\n[打开交互式思维导图](${path.basename(mapPath)})\n`);
-        console.log('附加思维导图', mapPath);
+        try {
+            fs.writeFileSync(mapPath, html, 'utf-8');
+            //把链接追加到md,链接与md同目录,用相对文件名
+            fs.appendFileSync(mdPath, `\n## 思维导图\n\n[打开交互式思维导图](${path.basename(mapPath)})\n`);
+            console.log('附加思维导图', mapPath);
+        }
+        catch (error) {
+            throw new AgentError('FILE_OPERATION_FAILED', 'md文件追加思维导图异常', false, error);
+        }
     }
     //console.log('createmarkdown返回值', { mdFileName: `${slug}.md`, mapFileName: shouldCreateMap ? `${slug} - map.html` : null })
     //返回md文件和思维导图html文件

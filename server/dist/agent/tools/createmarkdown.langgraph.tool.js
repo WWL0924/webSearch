@@ -1,12 +1,20 @@
 import { tool } from '@langchain/core/tools';
 import createMarkdown from '../../services/rag/createMarkdown';
 import { createMarkdownInputSchema } from '../../schemas/report.shcema';
+import { createToolErrorMessage } from '../toolErrors';
 // ragSearch 和 ragSearchInputSchema 使用现有导入
-export const createTool = tool((input, runtime) => {
-    if (!runtime.state.ismd) {
-        throw new Error('用户未选择生成 Markdown 报告');
+export const createTool = tool(async (input, runtime) => {
+    try {
+        if (!runtime.state.ismd) {
+            throw new Error('用户未选择生成 Markdown 报告');
+        }
+        return await createMarkdown({ ...input, isMap: runtime.state.isMap }, runtime.signal);
     }
-    return createMarkdown({ ...input, isMap: runtime.state.isMap }, runtime.signal);
+    catch (error) {
+        console.error('createMarkdown 工具执行失败', error);
+        runtime.signal?.throwIfAborted();
+        return createToolErrorMessage(error, 'createMarkdown', runtime.toolCallId);
+    }
 }, {
     name: 'createMarkdown',
     description: 

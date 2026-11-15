@@ -14,8 +14,8 @@ async function getCollection(name = "knowledge-base") {
   // 2. 获取 collection
   const collection = await client.getOrCreateCollection({
     name
-  })
 
+  })
   return collection
 }
 

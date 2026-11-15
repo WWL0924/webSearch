@@ -40,6 +40,7 @@ router.post('/', async (req: Request, res: Response) => {
     //断开链路就中断
     res.once('close', onClose)
 
+    //SSE开始前的错误
     //先校验请求
     const result = agentRequestSchema.safeParse(req.body)
     if (!result.success) {
@@ -165,6 +166,7 @@ router.post('/', async (req: Request, res: Response) => {
           //这里把AgentError的属性传给前端
           code: agentError.code,
           message: agentError.message,
+          retryable: agentError.retryable,
         })
         return
       }
@@ -182,7 +184,7 @@ router.post('/', async (req: Request, res: Response) => {
     else if (!res.writableEnded && !res.destroyed) {
       console.error('流式响应过程中出错', agentError)
 
-      //发送错误事件
+      //响应体中发送错误事件
       res.write(`data: ${JSON.stringify({
         type: 'error', //frontData.type
         content: agentError.message,

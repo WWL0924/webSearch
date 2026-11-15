@@ -259,6 +259,8 @@ async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRe
   try {
     //获取代码的collection
     const collection = await getCollection('code-examples')
+    // const collection = await getCollection('测试chroma错误重试')
+
     //根据parentSectionIds找和正文相同章节的code
     const where: Where = {
       parentSectionId: { $in: parentSectionIds }

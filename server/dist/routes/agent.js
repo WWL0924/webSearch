@@ -8,6 +8,8 @@ import express from 'express';
 import { runAgent } from '../agent/graph';
 import { agentRequestSchema } from '../schemas/search.schema';
 import { AgentError } from '../agent/errors';
+import { GraphRecursionError } from '@langchain/langgraph';
+import { toToolErrorEvent } from '../agent/toolErrors';
 const router = express.Router();
 //Content - Type: text / event - stream
 //sse响应头 
@@ -26,7 +28,12 @@ router.post('/', async (req, res) => {
         //先校验请求
         const result = agentRequestSchema.safeParse(req.body);
         if (!result.success) {
-            throw new Error('传入agent路由的数据校验失败');
+            //这里输入不变,重试仍失效
+            const message = result.error.issues.some(issue => issue.path[0] === 'sources')
+                ? '用户选择的来源无效'
+                : '用户输入无效';
+            throw new AgentError('INVALID_INPUT', message, false);
+            // throw new Error('传入agent路由的数据校验失败')
         }
         const { keyword, sources, ismd, isMap } = result.data;
         //设置流式响应头,这里只需要发送一次
@@ -40,7 +47,7 @@ router.post('/', async (req, res) => {
         //发送响应头
         res.flushHeaders();
         //流式返回 逐个获取并等待下一个值
-        const stream = await runAgent(keyword, sources, controller.signal, { ismd, isMap });
+        const stream = runAgent(keyword, sources, controller.signal, { ismd, isMap });
         for await (const state of stream) {
             //每个事件有独立的对象
             const frontData = { toolCall: [] };
@@ -63,11 +70,15 @@ router.post('/', async (req, res) => {
             //tool节点
             else if (state.tools) {
                 for (const tip of state.tools.messages) {
-                    const frontData = { toolCall: [] };
+                    const frontData = tip.status === 'error'
+                        ? toToolErrorEvent(tip) //工具错误返回前端
+                        : { toolCall: [] };
                     // 为当前工具结果创建独立事件
-                    frontData.toolCall?.push(tip.name);
-                    frontData.content = tip.content;
-                    frontData.type = 'tool_result'; //工具返回结果
+                    if (tip.status !== 'error') {
+                        frontData.toolCall?.push(tip.name);
+                        frontData.content = tip.content;
+                        frontData.type = 'tool_result'; //工具返回结果
+                    }
                     //每条工具结果都要发送一次
                     if (!controller.signal.aborted && !res.destroyed && !res.writableEnded) {
                         res.write(`data: ${JSON.stringify(frontData)} \n\n`);
@@ -96,32 +107,57 @@ router.post('/', async (req, res) => {
     }
     catch (error) {
         //判断响应阶段
+        //判断未知错误,捕获超过最大步数限制
+        const isTaskCancelled = controller.signal.aborted
+            || (error instanceof Error && error.name === 'AbortError');
+        const agentError = error instanceof AgentError
+            ? error
+            : isTaskCancelled
+                ? new AgentError('TASK_CANCELLED', '任务已取消', false, error)
+                : error instanceof GraphRecursionError
+                    ? new AgentError('MAX_STEPS_EXCEEDED', 'Agent 执行步数已达上限', false, error)
+                    : new AgentError('UNKNOWN_ERROR', '后端处理失败', false, error);
         //取消或者断开或者调用过end
         if (controller.signal.aborted || res.destroyed || res.writableEnded) {
+            //3已经结束
+            //记录日志
+            console.error('响应已结束或连接已断开', agentError);
+            //结束之后再抛出未知错误么?
+            //这里记录后直接返回,不再抛出异常
             return;
         }
         //1没开始 
         else if (!res.headersSent) {
-            //普通错误返回
-            //请求校验失败,用户输入错误
-            const invalidInput = new AgentError('INVALID_INPUT', '用户请求校验失败', true);
-            console.error('---------------响应还没开始', error);
-            res.status(500).json(['后端返回失败', '错误' + error]); //普通json
+            //用户输入无效
+            if (agentError.code === 'INVALID_INPUT') {
+                res.status(400).json({
+                    //这里把AgentError的属性传给前端
+                    code: agentError.code,
+                    message: agentError.message,
+                    retryable: agentError.retryable,
+                });
+                return;
+            }
+            console.error('请求处理过程中出错', agentError);
+            res.status(500).json({
+                code: agentError.code,
+                message: agentError.message,
+                retryable: agentError.retryable,
+            }); //普通json
         }
+        //SSE已经开始,不能改变状态码
+        //事件里携带错误内容
         else if (!res.writableEnded && !res.destroyed) {
-            console.error('流式响应过程中出错', error);
+            console.error('流式响应过程中出错', agentError);
             //发送错误事件
             res.write(`data: ${JSON.stringify({
                 type: 'error', //frontData.type
-                content: '后端处理失败，请稍后重试'
+                content: agentError.message,
+                code: agentError.code,
+                retryable: agentError.retryable,
             })}\n\n`);
             //结束响应
             res.end();
-        }
-        //3已经结束
-        else if (res.writableEnded || res.destroyed) {
-            //记录日志
-            console.error('响应已结束或连接已断开', error);
         }
     }
     finally {

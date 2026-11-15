@@ -59,7 +59,7 @@ export declare const createTool: import("@langchain/core/tools").DynamicStructur
         source: string;
         lang?: string | undefined;
     }[];
-}, {
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
     mdFileName: string;
     mapFileName: string | null;
 }, unknown, "createMarkdown">;

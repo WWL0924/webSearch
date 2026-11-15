@@ -16,6 +16,7 @@ const RAG_CONFIG = {
 };
 async function retrieve(embedding, keyword, sources = [], signal) {
     let result;
+    signal?.throwIfAborted();
     try {
         const collection = await getCollection(); //默认查询文本
         // console.log('检查collection', collection)
@@ -42,12 +43,9 @@ async function retrieve(embedding, keyword, sources = [], signal) {
         });
     }
     catch (error) {
-        if (error instanceof AgentError) {
+        signal?.throwIfAborted();
+        if (error instanceof Error && error.name === 'AbortError')
             throw error;
-        }
-        if (error instanceof Error && error.name === 'AbortError') {
-            throw error;
-        }
         throw new AgentError('CHROMA_ERROR', '文本向量数据库查询失败', true);
     }
     signal?.throwIfAborted();
@@ -200,40 +198,25 @@ async function retrieveCodeBySections({ parentSectionIds, sources = [] }, signal
         return [];
     }
     signal?.throwIfAborted();
-    let collection;
-    try {
-        //获取代码的collection
-        collection = await getCollection('code-examples');
-    }
-    catch (error) {
-        if (error instanceof AgentError) {
-            throw error;
-        }
-        if (error instanceof Error && error.name === 'AbortError') {
-            throw error;
-        }
-        throw new AgentError('CHROMA_ERROR', '获取代码向量数据库集合失败', true);
-    }
-    //根据parentSectionIds找和正文相同章节的code
-    const where = {
-        parentSectionId: { $in: parentSectionIds }
-    };
-    //这里是精确筛选
-    signal?.throwIfAborted();
     let result;
     try {
+        //获取代码的collection
+        const collection = await getCollection('code-examples');
+        //根据parentSectionIds找和正文相同章节的code
+        const where = {
+            parentSectionId: { $in: parentSectionIds }
+        };
+        //这里是精确筛选
+        signal?.throwIfAborted();
         result = await collection.get({
             where, //按照明确条件找记录
             include: ['documents', 'metadatas']
         });
     }
     catch (error) {
-        if (error instanceof AgentError) {
+        signal?.throwIfAborted();
+        if (error instanceof Error && error.name === 'AbortError')
             throw error;
-        }
-        if (error instanceof Error && error.name === 'AbortError') {
-            throw error;
-        }
         throw new AgentError('CHROMA_ERROR', '代码向量数据库查询失败', true);
     }
     signal?.throwIfAborted();

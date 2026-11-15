@@ -1,8 +1,19 @@
 import { tool } from '@langchain/core/tools';
 import readDocSection from '../../services/rag/readDocSection';
-import { readDocSectionInputSchema } from '../../schemas/read.schema';
+import { readDocSectionInputSchema, readDocSectionOutputSchema } from '../../schemas/read.schema';
+import { createToolErrorMessage } from '../toolErrors';
 // ragSearch 和 ragSearchInputSchema 使用现有导入
-export const readTool = tool(input => readDocSection(input), {
+export const readTool = tool(async (input, runtime) => {
+    try {
+        return await readDocSection(input);
+    }
+    catch (error) {
+        console.error('readDocSection 工具执行失败', error);
+        if (runtime.signal?.aborted)
+            throw error; //原样抛出
+        return createToolErrorMessage(error, 'readDocSection', runtime.toolCallId);
+    }
+}, {
     name: 'readDocSection',
     description: 
     // 用途：先说场景，把工具定位成「补全」而不是「找资料」

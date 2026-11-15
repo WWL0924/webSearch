@@ -7,7 +7,7 @@ export declare const readTool: import("@langchain/core/tools").DynamicStructured
 }, {
     filePath: string;
     section?: string | undefined;
-}, {
+}, import("@langchain/core/messages").ToolMessage<import("@langchain/core/messages").MessageStructure<import("@langchain/core/messages").MessageToolSet>> | {
     content: string;
     filePath: string;
     section: string | null;
