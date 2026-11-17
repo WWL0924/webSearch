@@ -19,6 +19,7 @@ const limitToken = 12000
 // 初始化模型，绑定工具
 const baseModel = new ChatOpenAI({
   model: "qwen3.8-flash",
+  //"deepseek-v4.1-flash"
   temperature: 0, //控制模型输出的随机性
   apiKey: env.DASHSCOPE_API_KEY,
   // apiKey: '123',

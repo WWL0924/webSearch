@@ -10,7 +10,7 @@ const client = new ChromaClient({
 })
 
 //这里函数的返回类型ts可以自动推导
-async function getCollection(name = "knowledge-base") {
+async function getCollection(name = process.env.CHROMA_RAG_COLLECTION ?? "knowledge-base") {
   // 2. 获取 collection
   const collection = await client.getOrCreateCollection({
     name

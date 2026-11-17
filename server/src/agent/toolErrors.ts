@@ -26,6 +26,7 @@ export function createToolErrorMessage(error: unknown, toolName: string, toolCal
 
 //进入工具函数之前就被捕获,错误存在toolMessage.content
 export function toToolErrorEvent(message: ToolMessage): AgentStreamEvent {
+ //整理成可以传给前端的类型?
   const event: AgentStreamEvent = {
     type: 'tool_error',
     toolCall: message.name ? [message.name] : [],

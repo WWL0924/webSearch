@@ -1,8 +1,8 @@
-import assert from 'node:assert/strict'
-import { test } from 'node:test'
 import { AIMessage, ToolMessage } from '@langchain/core/messages'
 import { tool, type ToolRuntime } from '@langchain/core/tools'
 import { ToolNode } from '@langchain/langgraph/prebuilt'
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
 import { z } from 'zod'
 import { AgentError } from '../../agent/errors'
 import { createToolErrorMessage, toToolErrorEvent } from '../../agent/toolErrors'
@@ -10,20 +10,26 @@ import { readTool } from '../../agent/tools/readdocsection.langgraph.tool'
 
 test('ToolNode 保留原错误码,成功与失败的工具结果可以同时返回', async () => {
   const error = new AgentError('CHROMA_ERROR', '文本向量数据库查询失败', true, new Error('private diagnostic'))
+
+  //返回失败信息的工具
   const failedTool = tool(
     (_input, runtime: ToolRuntime) => createToolErrorMessage(error, 'failed', runtime.toolCallId),
     { name: 'failed', description: 'failed tool', schema: z.object({}) }
   )
+  //返回成功信息的工具
   const successfulTool = tool(
     () => ({ value: 'success' }),
     { name: 'successful', description: 'successful tool', schema: z.object({}) }
   )
+
   const node = new ToolNode([failedTool, successfulTool])
+  //调用工具
   const result = await node.invoke({
     messages: [new AIMessage({
       content: '',
+
       tool_calls: [
-        { name: 'failed', args: {}, id: 'failed-call' },
+        { name: 'failed', args: {}, id: 'failed-call' }, //先调用failed
         { name: 'successful', args: {}, id: 'successful-call' },
       ],
     })],
@@ -32,6 +38,8 @@ test('ToolNode 保留原错误码,成功与失败的工具结果可以同时返�
   const failed: ToolMessage = result.messages[0]
   assert.equal(failed.status, 'error')
   assert.equal(failed.tool_call_id, 'failed-call')
+
+  //
   const event = JSON.parse(JSON.stringify(toToolErrorEvent(failed)))
   assert.deepEqual(event, {
     type: 'tool_error',
@@ -40,10 +48,15 @@ test('ToolNode 保留原错误码,成功与失败的工具结果可以同时返�
     code: 'CHROMA_ERROR',
     retryable: true,
   })
+
+  //不应该暴露给前端或外部调用者的内部诊断信息
   assert.equal(JSON.stringify(failed).includes('private diagnostic'), false)
+  //成功的结果返回
   assert.equal(result.messages[1].status, 'success')
   assert.deepEqual(JSON.parse(result.messages[1].content), { value: 'success' })
 })
+
+
 
 test('普通异常使用统一分类,原始诊断信息留在后端', () => {
   const message = createToolErrorMessage(new Error('private path'), 'createMarkdown', 'report-call')
@@ -51,11 +64,13 @@ test('普通异常使用统一分类,原始诊断信息留在后端', () => {
   assert.equal(event.code, 'TOOL_EXECUTION_FAILED')
   assert.equal(event.content, 'createMarkdown 工具执行失败')
   assert.equal(event.retryable, false)
+  //不暴露内部诊断信息
   assert.equal(JSON.stringify(message).includes('private path'), false)
 })
 
+
 test('真实读取工具失败时记录日志并返回错误 ToolMessage', async t => {
-  const logger = t.mock.method(console, 'error', () => {})
+  const logger = t.mock.method(console, 'error', () => { })
   const result = await new ToolNode([readTool]).invoke({
     messages: [new AIMessage({
       content: '',

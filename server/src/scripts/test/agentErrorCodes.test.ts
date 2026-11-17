@@ -28,14 +28,32 @@ test('文档错误能区分路径无效、文件不存在和章节不存在，�
   assert.match(readDocSection({ filePath: 'test/test.md', section: 'useState' }).content, /useState/)
 })
 
+
+
+//完整读取章节和子标题
+test('测试它能完整读取章节及子标题，并在下一个同级标题处停止', () => {
+  const result = readDocSection({ filePath: 'test/test.md', section: 'useState' })
+  assert.match(result.content, /### 示例/)
+  assert.doesNotMatch(result.content, /## useEffect/)
+})
+
+test('章节标题匹配不区分大小写', () => {
+  const result = readDocSection({ filePath: 'test/test.md', section: 'USESTATE' })
+
+  assert.match(result.content, /useState 用于给函数组件添加状态/)
+})
+
+
+
+
 test('模型错误经过完整 Agent 图后仍保留分类、重试标记和原始原因', async t => {
   process.env.DASHSCOPE_API_KEY ||= 'test-key-no-network'
   let providerError: unknown
   t.mock.method(ChatOpenAI.prototype, 'bindTools', () => ({
     invoke: async () => { throw providerError },
   }))
-  t.mock.method(console, 'error', () => {})
-  t.mock.method(console, 'log', () => {})
+  t.mock.method(console, 'error', () => { })
+  t.mock.method(console, 'log', () => { })
   const { runAgent } = await import('../../agent/graph')
   const cases = [
     { error: { status: 401 }, code: 'LLM_AUTH_FAILED', retryable: false },
@@ -69,7 +87,7 @@ test('报告区分无效 JSON、字段错误和超出大小上限，合法报告
   process.env.DASHSCOPE_API_KEY ||= 'test-key-no-network'
   let outputText = ''
   t.mock.method(Responses.prototype, 'create', async () => ({ output_text: outputText }))
-  t.mock.method(console, 'log', () => {})
+  t.mock.method(console, 'log', () => { })
   const { default: reportData } = await import('../../services/rag/reportData')
   const { default: createMarkdown } = await import('../../services/rag/createMarkdown')
 

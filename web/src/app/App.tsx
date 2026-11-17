@@ -11,6 +11,7 @@ import type { eventsType } from '../types/agent'
 import { Checkbox, Radio, Select } from 'antd'
 import AgentProgress from '../components/AgentProgress'
 import { ClientError } from '../errors/ClientError'
+import { agentStreamEventSchema } from '../schemas/agent.schema'
 
 type RagSearchDataType = ragSearchOutputType['data']
 
@@ -242,9 +243,9 @@ function App() {
         const messageText = frontArr[0].replace(/^data:\s*/, '')
 
 
-        let frontdata: AgentStreamEvent
+        let parsedData: unknown
         try {
-          frontdata = JSON.parse(messageText) //sse数据解析
+          parsedData = JSON.parse(messageText) //sse数据解析
         }
         catch (error) {
           if (error instanceof SyntaxError) {
@@ -257,6 +258,16 @@ function App() {
           }
           throw error
         }
+        const eventResult = agentStreamEventSchema.safeParse(parsedData)
+        if (!eventResult.success) {
+          throw new ClientError(
+            'RESPONSE_PARSE_ERROR',
+            '服务器返回的事件字段无效，请联系开发者检查',
+            false,
+            eventResult.error
+          )
+        }
+        const frontdata = eventResult.data
         lastEventType = frontdata.type
         console.log('agent传给前端的frontdata', frontdata)
 

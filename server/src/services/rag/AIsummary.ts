@@ -63,6 +63,7 @@ ${codeArr.length > 0 ? `# 相关代码示例\n${codeArr.join('\n\n')}\n` : ''}
   const response = await client.responses.create({
     //模型
     model: 'qwen3.8-flash',
+    //deepseek-v4.1-flash
     input: prompt,
     //开启流式传输
     stream: true

@@ -44,7 +44,8 @@ async function retrieve(
   let result: Awaited<ReturnType<Awaited<ReturnType<typeof getCollection>>['query']>>
   signal?.throwIfAborted()
   try {
-    const collection = await getCollection() //默认查询文本
+    //默认查询文本,这测试的时候,会读取环境变量
+    const collection = await getCollection()
 
     // console.log('检查collection', collection)
 
@@ -258,7 +259,7 @@ async function retrieveCodeBySections({ parentSectionIds, sources = [] }: CodeRe
   let result: Awaited<ReturnType<Awaited<ReturnType<typeof getCollection>>['get']>>
   try {
     //获取代码的collection
-    const collection = await getCollection('code-examples')
+    const collection = await getCollection(process.env.CHROMA_CODE_COLLECTION ?? 'code-examples')
     // const collection = await getCollection('测试chroma错误重试')
 
     //根据parentSectionIds找和正文相同章节的code
